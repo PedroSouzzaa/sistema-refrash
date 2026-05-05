@@ -1,30 +1,167 @@
-<div class="sidebar">
-    <h2>Refresh Admin</h2>
-    <hr style="opacity: 0.2">
-    
-    <p style="font-size: 0.8em; color: #bdc3c7; margin-bottom: 5px;">EXPORTAR DADOS:</p>
-    <a href="/admin/exportar/excel" class="btn-export excel">📊 Exportar para Excel</a>
-    <a href="/admin/exportar/pdf" class="btn-export pdf">📄 Exportar para PDF</a>
-    
-    <button onclick="location.href='/'" style="width:100%; margin-top:30px; background:transparent; border:1px solid #7f8c8d; color:white; cursor:pointer; padding:10px; border-radius:6px;">Sair do Painel</button>
-</div>
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Refresh Admin - Painel</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; margin: 0; display: flex; background: #f0f2f5; color: #333; }
+        
+        /* Sidebar Estilo Captura de Tela */
+        .sidebar { width: 280px; background: #34495e; color: white; height: 100vh; padding: 25px; position: fixed; box-sizing: border-box; }
+        .sidebar h2 { margin-top: 0; font-size: 1.6rem; margin-bottom: 10px; }
+        .sidebar p { font-size: 0.9rem; color: #bdc3c7; margin-bottom: 30px; }
+        
+        /* Botões da Sidebar */
+        .sidebar-nav { display: flex; flex-direction: column; gap: 12px; }
+        .btn-sidebar { padding: 12px; border-radius: 4px; text-align: center; font-weight: 600; text-decoration: none; transition: 0.3s; border: 1px solid transparent; cursor: pointer; }
+        
+        .btn-home { background: transparent; border: 1px solid white; color: white; }
+        .btn-home:hover { background: rgba(255,255,255,0.1); }
+        
+        /* Novos Botões de Exportação */
+        .btn-excel { background: #27ae60; color: white; border: none; }
+        .btn-excel:hover { background: #219150; }
+        .btn-pdf { background: #c0392b; color: white; border: none; }
+        .btn-pdf:hover { background: #a93226; }
 
-<style>
-    /* Estilos para os novos botões de exportação */
-    .btn-export {
-        display: block;
-        text-decoration: none;
-        padding: 12px;
-        margin-bottom: 10px;
-        border-radius: 6px;
-        font-weight: bold;
-        text-align: center;
-        transition: 0.2s;
-        font-size: 0.9em;
-    }
-    .excel { background-color: #27ae60; color: white; }
-    .excel:hover { background-color: #219150; }
-    
-    .pdf { background-color: #c0392b; color: white; }
-    .pdf:hover { background-color: #a93226; }
-</style>
+        /* Conteúdo Principal */
+        .main { margin-left: 280px; padding: 30px; width: 100%; box-sizing: border-box; }
+        .card { background: white; padding: 25px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 30px; }
+        .card h3 { margin-top: 0; color: #2c3e50; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 20px; }
+        
+        /* Formulário em Grid */
+        .form-row { display: flex; flex-wrap: wrap; gap: 15px; align-items: flex-end; }
+        .form-group { flex: 1; min-width: 150px; }
+        .form-group label { display: block; font-size: 0.8rem; margin-bottom: 5px; color: #666; }
+        input, select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
+        
+        .btn-save { background: #2ecc71; color: white; border: none; padding: 11px 25px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        .btn-save:hover { background: #27ae60; }
+
+        /* Tabela */
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; background: white; }
+        th { background: #34495e; color: white; padding: 12px; text-align: left; }
+        td { padding: 12px; border-bottom: 1px solid #eee; }
+        
+        .badge { padding: 5px 10px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; }
+        .status-ok { background: #d4edda; color: #155724; }
+        .status-ausente { background: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <h2>Refresh Admin</h2>
+        <p>Bem-vindo, Administrador</p>
+        
+        <div class="sidebar-nav">
+            <span style="font-size: 0.75rem; color: #ecf0f1; text-transform: uppercase;">Ações do Sistema</span>
+            <a href="/admin/exportar/excel" class="btn-sidebar btn-excel">📊 Exportar para EXCEL</a>
+            <a href="/admin/exportar/pdf" class="btn-sidebar btn-pdf">📄 Exportar para PDF</a>
+            
+            <hr style="border: 0; border-top: 1px solid rgba(255,255,255,0.1); margin: 10px 0;">
+            <a href="/" class="btn-sidebar btn-home">Sair/Home</a>
+        </div>
+    </div>
+
+    <div class="main">
+        <div class="card">
+            <h3>Cadastrar / Atualizar Colaborador</h3>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Nome</label>
+                    <input type="text" id="nome" placeholder="Nome">
+                </div>
+                <div class="form-group">
+                    <label>Sobrenome</label>
+                    <input type="text" id="sobrenome" placeholder="Sobrenome">
+                </div>
+                <div class="form-group">
+                    <label>ID Usuário</label>
+                    <input type="text" id="user_login" placeholder="Ex: joao.silva">
+                </div>
+                <div class="form-group">
+                    <label>Turno</label>
+                    <select id="turno">
+                        <option value="Manhã">Manhã</option>
+                        <option value="Tarde">Tarde</option>
+                        <option value="Noite">Noite</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Portaria/Posto</label>
+                    <input type="text" id="portaria" placeholder="Portaria 01">
+                </div>
+                <div class="form-group">
+                    <label>Código de Acesso</label>
+                    <input type="text" id="codigo" placeholder="Código">
+                </div>
+                <button class="btn-save" onclick="salvar()">Salvar Usuário</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>Colaboradores Cadastrados</h3>
+            <table id="tabelaUsuarios">
+                <thead>
+                    <tr>
+                        <th>Nome Completo</th>
+                        <th>Usuário</th>
+                        <th>Turno</th>
+                        <th>Portaria</th>
+                        <th>Último Registro</th>
+                        <th>Status</th>
+                        <th>Código Atual</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        async function carregar() {
+            const res = await fetch('/admin/status_usuarios');
+            const dados = await res.json();
+            const tbody = document.querySelector('#tabelaUsuarios tbody');
+            tbody.innerHTML = '';
+
+            dados.forEach(u => {
+                let sClass = u.ultimo_status === 'Verificado, registro completo' ? 'status-ok' : 'status-ausente';
+                let dText = u.ultimo_registro ? new Date(u.ultimo_registro).toLocaleString('pt-BR') : 'Sem registro';
+
+                tbody.innerHTML += `<tr>
+                    <td>${u.nome} ${u.sobrenome}</td>
+                    <td>${u.usuario_login}</td>
+                    <td>${u.turno}</td>
+                    <td>${u.portaria}</td>
+                    <td>${dText}</td>
+                    <td><span class="badge ${sClass}">${u.ultimo_status || 'Ausência de registro'}</span></td>
+                    <td><code>${u.codigo_atual}</code></td>
+                </tr>`;
+            });
+        }
+
+        async function salvar() {
+            const payload = {
+                nome: document.getElementById('nome').value,
+                sobrenome: document.getElementById('sobrenome').value,
+                usuario: document.getElementById('user_login').value,
+                turno: document.getElementById('turno').value,
+                portaria: document.getElementById('portaria').value,
+                codigo: document.getElementById('codigo').value
+            };
+            
+            const res = await fetch('/admin/usuarios', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload)
+            });
+            
+            if(res.ok) { alert("Sucesso!"); carregar(); }
+        }
+
+        setInterval(carregar, 30000);
+        carregar();
+    </script>
+</body>
+</html>
