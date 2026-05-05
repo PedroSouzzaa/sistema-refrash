@@ -1,28 +1,30 @@
+<div class="sidebar">
+    <h2>Refresh Admin</h2>
+    <hr style="opacity: 0.2">
+    
+    <p style="font-size: 0.8em; color: #bdc3c7; margin-bottom: 5px;">EXPORTAR DADOS:</p>
+    <a href="/admin/exportar/excel" class="btn-export excel">📊 Exportar para Excel</a>
+    <a href="/admin/exportar/pdf" class="btn-export pdf">📄 Exportar para PDF</a>
+    
+    <button onclick="location.href='/'" style="width:100%; margin-top:30px; background:transparent; border:1px solid #7f8c8d; color:white; cursor:pointer; padding:10px; border-radius:6px;">Sair do Painel</button>
+</div>
+
 <style>
-    .status-check { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
-    .status-ausencia { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
-</style>
-
-<script>
-    async function carregar() {
-        const res = await fetch('/admin/status_usuarios');
-        const dados = await res.json();
-        const tbody = document.querySelector('#tabela tbody');
-        tbody.innerHTML = '';
-
-        dados.forEach(u => {
-            let sClass = u.ultimo_status === 'Verificado, registro completo' ? 'status-check' : 'status-ausencia';
-            let dText = u.ultimo_registro ? new Date(u.ultimo_registro).toLocaleString('pt-BR') : 'Sem registro';
-
-            tbody.innerHTML += `<tr>
-                <td>${u.nome} ${u.sobrenome}</td>
-                <td>${u.empresa} / ${u.sede}</td>
-                <td>${u.portaria} (${u.turno})</td>
-                <td>${dText}</td>
-                <td><span class="badge ${sClass}">${u.ultimo_status || 'Pendente'}</span></td>
-                <td><code>${u.codigo_atual}</code></td>
-            </tr>`;
-        });
+    /* Estilos para os novos botões de exportação */
+    .btn-export {
+        display: block;
+        text-decoration: none;
+        padding: 12px;
+        margin-bottom: 10px;
+        border-radius: 6px;
+        font-weight: bold;
+        text-align: center;
+        transition: 0.2s;
+        font-size: 0.9em;
     }
-    // ... resto do script ...
-</script>
+    .excel { background-color: #27ae60; color: white; }
+    .excel:hover { background-color: #219150; }
+    
+    .pdf { background-color: #c0392b; color: white; }
+    .pdf:hover { background-color: #a93226; }
+</style>
