@@ -9,13 +9,12 @@ from psycopg2.extras import RealDictCursor
 app = Flask(__name__, template_folder='../templates')
 
 ADMIN_USER = "admin"
-# A senha será buscada na variável de ambiente da Vercel
 ADMIN_PASS = os.environ.get('ADMIN_PASSWORD', 'admin123')
 
 def get_db_connection():
     return psycopg2.connect(os.environ.get('POSTGRES_URL'))
 
-# Inicialização automática das tabelas
+# Inicialização com as novas colunas: empresa e sede
 with get_db_connection() as conn:
     with conn.cursor() as cur:
         cur.execute('''
@@ -26,6 +25,8 @@ with get_db_connection() as conn:
                 usuario_login TEXT UNIQUE NOT NULL,
                 turno TEXT,
                 portaria TEXT,
+                empresa TEXT,
+                sede TEXT,
                 codigo_atual TEXT
             );
             CREATE TABLE IF NOT EXISTS logs (
@@ -84,12 +85,13 @@ def salvar_usuario():
     conn = get_db_connection()
     cur = conn.cursor()
     cur.execute('''
-        INSERT INTO usuarios (nome, sobrenome, usuario_login, turno, portaria, codigo_atual)
-        VALUES (%s, %s, %s, %s, %s, %s)
+        INSERT INTO usuarios (nome, sobrenome, usuario_login, turno, portaria, empresa, sede, codigo_atual)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
         ON CONFLICT (usuario_login) DO UPDATE SET 
         nome=EXCLUDED.nome, sobrenome=EXCLUDED.sobrenome, turno=EXCLUDED.turno, 
-        portaria=EXCLUDED.portaria, codigo_atual=EXCLUDED.codigo_atual
-    ''', (d['nome'], d['sobrenome'], d['usuario'].lower(), d['turno'], d['portaria'], d['codigo']))
+        portaria=EXCLUDED.portaria, empresa=EXCLUDED.empresa, sede=EXCLUDED.sede, 
+        codigo_atual=EXCLUDED.codigo_atual
+    ''', (d['nome'], d['sobrenome'], d['usuario'].lower(), d['turno'], d['portaria'], d['empresa'], d['sede'], d['codigo']))
     conn.commit()
     cur.close()
     conn.close()
@@ -100,19 +102,24 @@ def exportar_csv():
     if request.cookies.get('auth_admin') != ADMIN_PASS: return "Acesso negado", 403
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
-    cur.execute('SELECT colaborador, data_hora, status FROM logs ORDER BY data_hora DESC')
+    # Join para incluir dados do usuário no CSV
+    cur.execute('''
+        SELECT l.colaborador, u.nome, u.empresa, u.sede, l.data_hora, l.status 
+        FROM logs l 
+        LEFT JOIN usuarios u ON l.colaborador = u.usuario_login
+        ORDER BY l.data_hora DESC
+    ''')
     logs = cur.fetchall()
     
     output = io.StringIO()
-    # Adicionando BOM para o Excel abrir com acentos corretos em PT-BR
     output.write('\ufeff')
     writer = csv.writer(output, delimiter=';')
-    writer.writerow(['Colaborador', 'Data e Hora', 'Status'])
+    writer.writerow(['Usuário', 'Nome', 'Empresa', 'Sede', 'Data e Hora', 'Status'])
     for l in logs:
-        writer.writerow([l['colaborador'], l['data_hora'].strftime('%d/%m/%Y %H:%M:%S'), l['status']])
+        writer.writerow([l['colaborador'], l['nome'], l['empresa'], l['sede'], l['data_hora'].strftime('%d/%m/%Y %H:%M:%S'), l['status']])
     
     response = make_response(output.getvalue())
-    response.headers["Content-Disposition"] = "attachment; filename=relatorio_refresh.csv"
+    response.headers["Content-Disposition"] = "attachment; filename=relatorio_completo.csv"
     response.headers["Content-type"] = "text/csv; charset=utf-8"
     return response
 
