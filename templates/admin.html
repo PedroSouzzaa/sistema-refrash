@@ -2,53 +2,59 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Gestão de Usuários</title>
+    <title>Painel de Controle Refresh</title>
     <style>
-        body { font-family: sans-serif; margin: 0; display: flex; background: #f4f7f6; }
-        .sidebar { width: 250px; background: #2c3e50; color: white; height: 100vh; padding: 20px; }
-        .content { flex: 1; padding: 40px; }
-        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
-        input, select { padding: 8px; margin: 5px; border: 1px solid #ddd; border-radius: 4px; }
-        table { width: 100%; border-collapse: collapse; background: white; }
-        th, td { padding: 12px; border: 1px solid #eee; text-align: left; }
-        th { background: #34495e; color: white; }
-        .btn { padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer; background: #27ae60; color: white; }
+        body { font-family: 'Segoe UI', sans-serif; margin: 0; display: flex; background: #f0f2f5; }
+        .sidebar { width: 260px; background: #1a252f; color: white; height: 100vh; padding: 25px; position: fixed; }
+        .main { margin-left: 310px; padding: 40px; width: calc(100% - 350px); }
+        .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 25px; }
+        input, select { padding: 10px; margin: 5px; border: 1px solid #ddd; border-radius: 6px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { padding: 12px; border-bottom: 1px solid #eee; text-align: left; }
+        th { background: #f8f9fa; color: #333; }
+        .btn { padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; }
+        .btn-add { background: #2ecc71; color: white; }
+        .btn-csv { background: #e67e22; color: white; margin-top: 15px; display: block; text-decoration: none; text-align: center; }
+        .badge { padding: 5px 10px; border-radius: 20px; font-size: 0.85em; font-weight: bold; }
+        .ok { background: #d4edda; color: #155724; }
+        .atrasado { background: #f8d7da; color: #721c24; }
     </style>
 </head>
 <body>
     <div class="sidebar">
-        <h2>Refresh Admin</h2>
-        <p>Bem-vindo, Administrador</p>
-        <hr>
-        <button onclick="location.href='/'" style="background:none; color:white; border:1px solid white; cursor:pointer; width:100%; padding:10px;">Sair/Home</button>
+        <h2>Refresh System</h2>
+        <p>Administração</p>
+        <hr style="opacity: 0.2">
+        <a href="/admin/exportar_csv" class="btn btn-csv">📥 Baixar Relatório CSV</a>
+        <button onclick="location.href='/'" style="width:100%; margin-top:20px; background:transparent; border:1px solid white; color:white; cursor:pointer; padding:10px;">Sair</button>
     </div>
 
-    <div class="content">
+    <div class="main">
         <div class="card">
-            <h3>Cadastrar / Atualizar Colaborador</h3>
+            <h3>Novo Cadastro / Atualização</h3>
             <input type="text" id="nome" placeholder="Nome">
             <input type="text" id="sobrenome" placeholder="Sobrenome">
-            <input type="text" id="user_login" placeholder="ID Usuário (ex: joao.silva)">
+            <input type="text" id="user_login" placeholder="Usuário (ID)">
             <select id="turno">
                 <option value="Manhã">Manhã</option>
                 <option value="Tarde">Tarde</option>
                 <option value="Noite">Noite</option>
             </select>
-            <input type="text" id="portaria" placeholder="Portaria/Posto">
-            <input type="text" id="codigo" placeholder="Código de Acesso">
-            <button class="btn" onclick="salvarUsuario()">Salvar Usuário</button>
+            <input type="text" id="portaria" placeholder="Portaria">
+            <input type="text" id="codigo" placeholder="Código Atual">
+            <button class="btn btn-add" onclick="salvar()">Salvar Colaborador</button>
         </div>
 
         <div class="card">
-            <h3>Colaboradores Cadastrados</h3>
-            <table id="tabelaUsuarios">
+            <h3>Monitoramento em Tempo Real</h3>
+            <table id="tabela">
                 <thead>
                     <tr>
-                        <th>Nome Completo</th>
-                        <th>Usuário</th>
-                        <th>Turno</th>
+                        <th>Colaborador</th>
                         <th>Portaria</th>
-                        <th>Código Atual</th>
+                        <th>Último Registro</th>
+                        <th>Status (1h)</th>
+                        <th>Código</th>
                     </tr>
                 </thead>
                 <tbody></tbody>
@@ -57,24 +63,42 @@
     </div>
 
     <script>
-        async function carregarUsuarios() {
-            const res = await fetch('/admin/usuarios');
+        async function carregar() {
+            const res = await fetch('/admin/status_usuarios');
             const dados = await res.json();
-            const corpo = document.querySelector('#tabelaUsuarios tbody');
-            corpo.innerHTML = '';
+            const tbody = document.querySelector('#tabela tbody');
+            tbody.innerHTML = '';
+            const agora = new Date();
+
             dados.forEach(u => {
-                corpo.innerHTML += `<tr>
+                let statusClass = "ok", statusText = "✅ No Prazo";
+                let dataText = "--:--";
+
+                if (u.ultimo_registro) {
+                    const ultima = new Date(u.ultimo_registro);
+                    dataText = ultima.toLocaleString('pt-BR');
+                    const diffMin = Math.floor((agora - ultima) / 60000);
+                    if (diffMin > 60) {
+                        statusClass = "atrasado";
+                        statusText = `⚠️ ATRASADO (${diffMin} min)`;
+                    }
+                } else {
+                    statusClass = "atrasado";
+                    statusText = "Sem registro";
+                }
+
+                tbody.innerHTML += `<tr>
                     <td>${u.nome} ${u.sobrenome}</td>
-                    <td>${u.usuario_login}</td>
-                    <td>${u.turno}</td>
-                    <td>${u.portaria}</td>
-                    <td><strong>${u.codigo_atual}</strong></td>
+                    <td>${u.portaria} (${u.turno})</td>
+                    <td>${dataText}</td>
+                    <td><span class="badge ${statusClass}">${statusText}</span></td>
+                    <td><code>${u.codigo_atual}</code></td>
                 </tr>`;
             });
         }
 
-        async function salvarUsuario() {
-            const payload = {
+        async function salvar() {
+            const data = {
                 nome: document.getElementById('nome').value,
                 sobrenome: document.getElementById('sobrenome').value,
                 usuario: document.getElementById('user_login').value,
@@ -85,13 +109,14 @@
             await fetch('/admin/usuarios', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(payload)
+                body: JSON.stringify(data)
             });
-            alert("Usuário atualizado!");
-            carregarUsuarios();
+            alert("Dados atualizados!");
+            carregar();
         }
 
-        carregarUsuarios();
+        setInterval(carregar, 30000);
+        carregar();
     </script>
 </body>
 </html>
