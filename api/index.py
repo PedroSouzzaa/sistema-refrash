@@ -1,48 +1,41 @@
 import os
+import csv
+import io
+import datetime
 from flask import Flask, render_template, request, jsonify, make_response
 import psycopg2
 from psycopg2.extras import RealDictCursor
-import datetime
 
 app = Flask(__name__, template_folder='../templates')
 
-# Configuração do ADMIN (Use variáveis de ambiente na Vercel para produção)
 ADMIN_USER = "admin"
+# A senha será buscada na variável de ambiente da Vercel
 ADMIN_PASS = os.environ.get('ADMIN_PASSWORD', 'admin123')
 
 def get_db_connection():
     return psycopg2.connect(os.environ.get('POSTGRES_URL'))
 
-def init_db():
-    conn = get_db_connection()
-    cur = conn.cursor()
-    # Tabela de usuários expandida
-    cur.execute('''
-        CREATE TABLE IF NOT EXISTS usuarios (
-            id SERIAL PRIMARY KEY,
-            nome TEXT NOT NULL,
-            sobrenome TEXT,
-            usuario_login TEXT UNIQUE NOT NULL,
-            turno TEXT,
-            portaria TEXT,
-            codigo_atual TEXT
-        );
-    ''')
-    cur.execute('''
-        CREATE TABLE IF NOT EXISTS logs (
-            id SERIAL PRIMARY KEY,
-            colaborador TEXT,
-            data_hora TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            status TEXT
-        );
-    ''')
+# Inicialização automática das tabelas
+with get_db_connection() as conn:
+    with conn.cursor() as cur:
+        cur.execute('''
+            CREATE TABLE IF NOT EXISTS usuarios (
+                id SERIAL PRIMARY KEY,
+                nome TEXT NOT NULL,
+                sobrenome TEXT,
+                usuario_login TEXT UNIQUE NOT NULL,
+                turno TEXT,
+                portaria TEXT,
+                codigo_atual TEXT
+            );
+            CREATE TABLE IF NOT EXISTS logs (
+                id SERIAL PRIMARY KEY,
+                colaborador TEXT,
+                data_hora TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                status TEXT
+            );
+        ''')
     conn.commit()
-    cur.close()
-    conn.close()
-
-init_db()
-
-# --- ROTAS DE PÁGINAS ---
 
 @app.route('/')
 def index():
@@ -54,64 +47,85 @@ def login_page():
 
 @app.route('/admin')
 def admin_page():
-    # Uma verificação simples de cookie para segurança básica
     auth = request.cookies.get('auth_admin')
     if auth != ADMIN_PASS:
-        return render_template('login.html', erro="Acesso restrito.")
+        return render_template('login.html', erro="Sessão expirada.")
     return render_template('admin.html')
-
-# --- ENDPOINTS API ---
 
 @app.route('/api/login', methods=['POST'])
 def api_login():
     data = request.json
     if data.get('user') == ADMIN_USER and data.get('password') == ADMIN_PASS:
         resp = make_response(jsonify({"status": "sucesso"}))
-        resp.set_cookie('auth_admin', ADMIN_PASS, httponly=True)
+        resp.set_cookie('auth_admin', ADMIN_PASS, httponly=True, samesite='Lax')
         return resp
-    return jsonify({"status": "erro", "msg": "Credenciais inválidas"}), 401
+    return jsonify({"status": "erro"}), 401
 
-@app.route('/admin/usuarios', methods=['GET', 'POST'])
-def gerenciar_usuarios():
-    auth = request.cookies.get('auth_admin')
-    if auth != ADMIN_PASS: return jsonify([]), 403
-
+@app.route('/admin/status_usuarios', methods=['GET'])
+def status_usuarios():
+    if request.cookies.get('auth_admin') != ADMIN_PASS: return jsonify([]), 403
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
-
-    if request.method == 'POST':
-        d = request.json
-        cur.execute('''
-            INSERT INTO usuarios (nome, sobrenome, usuario_login, turno, portaria, codigo_atual)
-            VALUES (%s, %s, %s, %s, %s, %s)
-            ON CONFLICT (usuario_login) DO UPDATE SET 
-            nome=EXCLUDED.nome, sobrenome=EXCLUDED.sobrenome, turno=EXCLUDED.turno, 
-            portaria=EXCLUDED.portaria, codigo_atual=EXCLUDED.codigo_atual
-        ''', (d['nome'], d['sobrenome'], d['usuario'].lower(), d['turno'], d['portaria'], d['codigo']))
-        conn.commit()
-        res = jsonify({"status": "ok"})
-    else:
-        cur.execute('SELECT * FROM usuarios ORDER BY nome ASC')
-        res = jsonify(cur.fetchall())
-    
+    cur.execute('''
+        SELECT u.*, MAX(l.data_hora) as ultimo_registro
+        FROM usuarios u
+        LEFT JOIN logs l ON u.usuario_login = l.colaborador AND l.status = 'Sucesso'
+        GROUP BY u.id ORDER BY u.nome ASC
+    ''')
+    dados = cur.fetchall()
     cur.close()
     conn.close()
-    return res
+    return jsonify(dados)
+
+@app.route('/admin/usuarios', methods=['POST'])
+def salvar_usuario():
+    if request.cookies.get('auth_admin') != ADMIN_PASS: return jsonify({"status": "erro"}), 403
+    d = request.json
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute('''
+        INSERT INTO usuarios (nome, sobrenome, usuario_login, turno, portaria, codigo_atual)
+        VALUES (%s, %s, %s, %s, %s, %s)
+        ON CONFLICT (usuario_login) DO UPDATE SET 
+        nome=EXCLUDED.nome, sobrenome=EXCLUDED.sobrenome, turno=EXCLUDED.turno, 
+        portaria=EXCLUDED.portaria, codigo_atual=EXCLUDED.codigo_atual
+    ''', (d['nome'], d['sobrenome'], d['usuario'].lower(), d['turno'], d['portaria'], d['codigo']))
+    conn.commit()
+    cur.close()
+    conn.close()
+    return jsonify({"status": "ok"})
+
+@app.route('/admin/exportar_csv', methods=['GET'])
+def exportar_csv():
+    if request.cookies.get('auth_admin') != ADMIN_PASS: return "Acesso negado", 403
+    conn = get_db_connection()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    cur.execute('SELECT colaborador, data_hora, status FROM logs ORDER BY data_hora DESC')
+    logs = cur.fetchall()
+    
+    output = io.StringIO()
+    # Adicionando BOM para o Excel abrir com acentos corretos em PT-BR
+    output.write('\ufeff')
+    writer = csv.writer(output, delimiter=';')
+    writer.writerow(['Colaborador', 'Data e Hora', 'Status'])
+    for l in logs:
+        writer.writerow([l['colaborador'], l['data_hora'].strftime('%d/%m/%Y %H:%M:%S'), l['status']])
+    
+    response = make_response(output.getvalue())
+    response.headers["Content-Disposition"] = "attachment; filename=relatorio_refresh.csv"
+    response.headers["Content-type"] = "text/csv; charset=utf-8"
+    return response
 
 @app.route('/colaborador/validar', methods=['POST'])
 def validar():
     data = request.json
-    usuario = data.get('usuario').lower()
-    codigo_digitado = data.get('codigo')
-    
+    user, code = data.get('usuario','').lower(), data.get('codigo','')
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
-    cur.execute('SELECT codigo_atual FROM usuarios WHERE usuario_login = %s', (usuario,))
+    cur.execute('SELECT codigo_atual FROM usuarios WHERE usuario_login = %s', (user,))
     row = cur.fetchone()
-    
-    if row and row['codigo_atual'] == codigo_digitado:
-        cur.execute('INSERT INTO logs (colaborador, status) VALUES (%s, %s)', (usuario, 'Sucesso'))
+    if row and row['codigo_atual'] == code:
+        cur.execute('INSERT INTO logs (colaborador, status) VALUES (%s, %s)', (user, 'Sucesso'))
         conn.commit()
-        return jsonify({"status": "sucesso", "msg": "Código Validado!"})
-    
-    return jsonify({"status": "erro", "msg": "Dados incorretos"}), 401
+        return jsonify({"status": "sucesso", "msg": "✅ Validado com sucesso!"})
+    return jsonify({"status": "erro", "msg": "❌ Usuário ou código inválido"}), 401
