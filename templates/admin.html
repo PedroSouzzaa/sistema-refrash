@@ -2,58 +2,62 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Painel de Controle Refresh</title>
+    <title>Painel Admin Refresh</title>
     <style>
         body { font-family: 'Segoe UI', sans-serif; margin: 0; display: flex; background: #f0f2f5; }
         .sidebar { width: 260px; background: #1a252f; color: white; height: 100vh; padding: 25px; position: fixed; }
         .main { margin-left: 310px; padding: 40px; width: calc(100% - 350px); }
         .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 25px; }
-        input, select { padding: 10px; margin: 5px; border: 1px solid #ddd; border-radius: 6px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-        th, td { padding: 12px; border-bottom: 1px solid #eee; text-align: left; }
-        th { background: #f8f9fa; color: #333; }
+        .grid-form { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+        input, select { padding: 10px; border: 1px solid #ddd; border-radius: 6px; width: 100%; box-sizing: border-box; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; background: white; }
+        th, td { padding: 12px; border-bottom: 1px solid #eee; text-align: left; font-size: 0.9em; }
+        th { background: #f8f9fa; }
         .btn { padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; }
-        .btn-add { background: #2ecc71; color: white; }
+        .btn-add { background: #2ecc71; color: white; grid-column: span 3; margin-top: 10px; }
         .btn-csv { background: #e67e22; color: white; margin-top: 15px; display: block; text-decoration: none; text-align: center; }
-        .badge { padding: 5px 10px; border-radius: 20px; font-size: 0.85em; font-weight: bold; }
+        .badge { padding: 4px 8px; border-radius: 4px; font-size: 0.8em; font-weight: bold; }
         .ok { background: #d4edda; color: #155724; }
         .atrasado { background: #f8d7da; color: #721c24; }
     </style>
 </head>
 <body>
     <div class="sidebar">
-        <h2>Refresh System</h2>
-        <p>Administração</p>
-        <hr style="opacity: 0.2">
-        <a href="/admin/exportar_csv" class="btn btn-csv">📥 Baixar Relatório CSV</a>
+        <h2>Refresh Admin</h2>
+        <a href="/admin/exportar_csv" class="btn btn-csv">📥 Relatório Completo CSV</a>
         <button onclick="location.href='/'" style="width:100%; margin-top:20px; background:transparent; border:1px solid white; color:white; cursor:pointer; padding:10px;">Sair</button>
     </div>
 
     <div class="main">
         <div class="card">
-            <h3>Novo Cadastro / Atualização</h3>
-            <input type="text" id="nome" placeholder="Nome">
-            <input type="text" id="sobrenome" placeholder="Sobrenome">
-            <input type="text" id="user_login" placeholder="Usuário (ID)">
-            <select id="turno">
-                <option value="Manhã">Manhã</option>
-                <option value="Tarde">Tarde</option>
-                <option value="Noite">Noite</option>
-            </select>
-            <input type="text" id="portaria" placeholder="Portaria">
-            <input type="text" id="codigo" placeholder="Código Atual">
-            <button class="btn btn-add" onclick="salvar()">Salvar Colaborador</button>
+            <h3>Cadastro de Colaborador</h3>
+            <div class="grid-form">
+                <input type="text" id="nome" placeholder="Nome">
+                <input type="text" id="sobrenome" placeholder="Sobrenome">
+                <input type="text" id="user_login" placeholder="Usuário (ID)">
+                <input type="text" id="empresa" placeholder="Empresa">
+                <input type="text" id="sede" placeholder="Sede">
+                <select id="turno">
+                    <option value="Manhã">Manhã</option>
+                    <option value="Tarde">Tarde</option>
+                    <option value="Noite">Noite</option>
+                </select>
+                <input type="text" id="portaria" placeholder="Portaria/Posto">
+                <input type="text" id="codigo" placeholder="Código de Acesso">
+                <button class="btn btn-add" onclick="salvar()">Salvar / Atualizar</button>
+            </div>
         </div>
 
         <div class="card">
-            <h3>Monitoramento em Tempo Real</h3>
+            <h3>Monitoramento</h3>
             <table id="tabela">
                 <thead>
                     <tr>
-                        <th>Colaborador</th>
-                        <th>Portaria</th>
+                        <th>Nome</th>
+                        <th>Empresa/Sede</th>
+                        <th>Posto/Turno</th>
                         <th>Último Registro</th>
-                        <th>Status (1h)</th>
+                        <th>Status</th>
                         <th>Código</th>
                     </tr>
                 </thead>
@@ -71,27 +75,24 @@
             const agora = new Date();
 
             dados.forEach(u => {
-                let statusClass = "ok", statusText = "✅ No Prazo";
-                let dataText = "--:--";
+                let sClass = "ok", sText = "✅ OK";
+                let dText = "--/--";
 
                 if (u.ultimo_registro) {
-                    const ultima = new Date(u.ultimo_registro);
-                    dataText = ultima.toLocaleString('pt-BR');
-                    const diffMin = Math.floor((agora - ultima) / 60000);
-                    if (diffMin > 60) {
-                        statusClass = "atrasado";
-                        statusText = `⚠️ ATRASADO (${diffMin} min)`;
+                    const ult = new Date(u.ultimo_registro);
+                    dText = ult.toLocaleString('pt-BR');
+                    if (Math.floor((agora - ult)/60000) > 60) {
+                        sClass = "atrasado";
+                        sText = "⚠️ ATRASADO";
                     }
-                } else {
-                    statusClass = "atrasado";
-                    statusText = "Sem registro";
-                }
+                } else { sClass = "atrasado"; sText = "Sem registro"; }
 
                 tbody.innerHTML += `<tr>
-                    <td>${u.nome} ${u.sobrenome}</td>
-                    <td>${u.portaria} (${u.turno})</td>
-                    <td>${dataText}</td>
-                    <td><span class="badge ${statusClass}">${statusText}</span></td>
+                    <td>${u.nome} ${u.sobrenome}<br><small>${u.usuario_login}</small></td>
+                    <td>${u.empresa}<br><small>${u.sede}</small></td>
+                    <td>${u.portaria}<br><small>${u.turno}</small></td>
+                    <td>${dText}</td>
+                    <td><span class="badge ${sClass}">${sText}</span></td>
                     <td><code>${u.codigo_atual}</code></td>
                 </tr>`;
             });
@@ -99,22 +100,18 @@
 
         async function salvar() {
             const data = {
-                nome: document.getElementById('nome').value,
-                sobrenome: document.getElementById('sobrenome').value,
-                usuario: document.getElementById('user_login').value,
-                turno: document.getElementById('turno').value,
-                portaria: document.getElementById('portaria').value,
-                codigo: document.getElementById('codigo').value
+                nome: id('nome'), sobrenome: id('sobrenome'), usuario: id('user_login'),
+                empresa: id('empresa'), sede: id('sede'),
+                turno: id('turno'), portaria: id('portaria'), codigo: id('codigo')
             };
             await fetch('/admin/usuarios', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify(data)
             });
-            alert("Dados atualizados!");
-            carregar();
+            alert("Sucesso!"); carregar();
         }
-
+        function id(name){ return document.getElementById(name).value; }
         setInterval(carregar, 30000);
         carregar();
     </script>
