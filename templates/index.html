@@ -3,142 +3,67 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema Refresh Enterprise</title>
+    <title>Registro de Atividade</title>
     <style>
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #eceff1;
-            padding: 20px;
+            font-family: sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background: #f0f2f5;
         }
 
-        .container {
-            max-width: 600px;
-            margin: auto;
-        }
-
-        .card {
+        .box {
             background: white;
-            padding: 25px;
+            padding: 40px;
             border-radius: 12px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            margin-bottom: 20px;
-        }
-
-        h2,
-        h3 {
-            color: #2c3e50;
-            margin-top: 0;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            width: 320px;
         }
 
         input {
             width: 100%;
             padding: 12px;
-            margin: 8px 0;
+            margin: 10px 0;
             border: 1px solid #ddd;
             border-radius: 6px;
+            box-sizing: border-box;
         }
 
         button {
             width: 100%;
             padding: 12px;
+            background: #007bff;
+            color: white;
             border: none;
             border-radius: 6px;
             cursor: pointer;
             font-weight: bold;
-            transition: 0.3s;
-        }
-
-        .btn-colab {
-            background: #3498db;
-            color: white;
-        }
-
-        .btn-admin {
-            background: #27ae60;
-            color: white;
-        }
-
-        .logs-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 15px;
-            font-size: 0.9em;
-        }
-
-        .logs-table th,
-        .logs-table td {
-            border: 1px solid #ddd;
-            padding: 8px;
-            text-align: left;
         }
     </style>
 </head>
 
 <body>
-    <div class="container">
-        <div class="card">
-            <h2>⏱️ Refresh Colaborador</h2>
-            <input type="text" id="colab_user" placeholder="Seu Usuário">
-            <input type="text" id="colab_code" placeholder="Digite o código da hora">
-            <button class="btn-colab" onclick="validar()">Registrar Agora</button>
-        </div>
-
-        <div class="card">
-            <h3>⚙️ Painel Administrativo</h3>
-            <input type="password" id="admin_pass" placeholder="Senha do Admin">
-            <input type="text" id="new_user" placeholder="Nome do Colaborador">
-            <input type="text" id="new_code" placeholder="Gerar Código">
-            <button class="btn-admin" onclick="gerarCodigo()">Definir Código</button>
-            <button style="margin-top:10px; background:#95a5a6; color:white;" onclick="carregarLogs()">Ver Histórico
-                (Logs)</button>
-
-            <div id="lista_logs"></div>
-        </div>
+    <div class="box">
+        <h2>Refresh</h2>
+        <p>Insira seu código horário</p>
+        <input type="text" id="user" placeholder="Usuário">
+        <input type="text" id="code" placeholder="Código">
+        <button onclick="enviar()">Validar Agora</button>
     </div>
-
     <script>
-        async function validar() {
+        async function enviar() {
             const res = await fetch('/colaborador/validar', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    usuario: document.getElementById('colab_user').value,
-                    codigo: document.getElementById('colab_code').value
-                })
+                body: JSON.stringify({ usuario: document.getElementById('user').value, codigo: document.getElementById('code').value })
             });
             const data = await res.json();
             alert(data.msg);
-        }
-
-        async function gerarCodigo() {
-            const res = await fetch('/admin/gerar', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    admin_pass: document.getElementById('admin_pass').value,
-                    usuario: document.getElementById('new_user').value,
-                    codigo: document.getElementById('new_code').value
-                })
-            });
-            const data = await res.json();
-            alert(data.msg);
-        }
-
-        async function carregarLogs() {
-            const res = await fetch('/admin/logs', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ admin_pass: document.getElementById('admin_pass').value })
-            });
-            const logs = await res.json();
-            if (logs.length === 0) { alert("Senha incorreta ou sem logs."); return; }
-
-            let html = '<table class="logs-table"><tr><th>Colab</th><th>Data/Hora</th><th>Status</th></tr>';
-            logs.forEach(l => {
-                html += `<tr><td>${l.colaborador}</td><td>${l.data_hora}</td><td>${l.status}</td></tr>`;
-            });
-            document.getElementById('lista_logs').innerHTML = html + '</table>';
+            if (data.status === 'sucesso') document.getElementById('code').value = '';
         }
     </script>
 </body>
