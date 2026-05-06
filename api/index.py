@@ -1,6 +1,5 @@
 import os
 import io
-import csv
 import pandas as pd
 from datetime import datetime, timedelta
 from flask import Flask, render_template, request, jsonify, make_response
@@ -15,7 +14,14 @@ from reportlab.lib.styles import getSampleStyleSheet
 
 app = Flask(__name__, template_folder='../templates')
 
+# Configurações de Ambiente
 ADMIN_PASS = os.environ.get('ADMIN_PASSWORD', 'admin123')
+
+# Configuração de Horários
+HORARIOS_TURNOS = {
+    "Manhã": {"inicio": 7, "fim": 19},
+    "Noite": {"inicio": 19, "fim": 7}
+}
 
 def get_db_connection():
     return psycopg2.connect(os.environ.get('POSTGRES_URL'))
@@ -32,7 +38,6 @@ def init_db():
             codigo_atual TEXT
         );
     ''')
-    # Garante que as colunas existam caso a tabela tenha sido criada antes
     cur.execute("ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS empresa TEXT;")
     cur.execute("ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS sede TEXT;")
     
@@ -48,32 +53,45 @@ def init_db():
     cur.close()
     conn.close()
 
+# Inicialização do Banco
 try:
     init_db()
 except Exception as e:
-    print(f"Erro banco: {e}")
+    print(f"Erro no banco: {e}")
 
 def processar_ausencias():
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
-    cur.execute("SELECT usuario_login FROM usuarios")
+    cur.execute("SELECT usuario_login, turno FROM usuarios")
     usuarios = cur.fetchall()
     agora = datetime.now()
+    hora_atual = agora.hour
+
     for u in usuarios:
-        cur.execute("SELECT data_hora FROM logs WHERE colaborador = %s ORDER BY data_hora DESC LIMIT 1", (u['usuario_login'],))
-        ultimo = cur.fetchone()
-        if not ultimo or (agora - ultimo['data_hora']) > timedelta(minutes=65):
-            cur.execute('''
-                INSERT INTO logs (colaborador, status, data_hora)
-                SELECT %s, 'Ausência de registro', %s
-                WHERE NOT EXISTS (
-                    SELECT 1 FROM logs WHERE colaborador = %s 
-                    AND status = 'Ausência de registro' AND data_hora > %s
-                )
-            ''', (u['usuario_login'], agora, u['usuario_login'], agora - timedelta(minutes=55)))
+        config = HORARIOS_TURNOS.get(u['turno'])
+        if not config: continue
+
+        # Lógica de Turno (Manhã vs Noite que vira o dia)
+        no_turno = (config["inicio"] <= hora_atual < config["fim"]) if config["inicio"] < config["fim"] \
+                   else (hora_atual >= config["inicio"] or hora_atual < config["fim"])
+
+        if no_turno:
+            cur.execute("SELECT data_hora FROM logs WHERE colaborador = %s ORDER BY data_hora DESC LIMIT 1", (u['usuario_login'],))
+            ultimo = cur.fetchone()
+            if not ultimo or (agora - ultimo['data_hora']) > timedelta(minutes=65):
+                cur.execute('''
+                    INSERT INTO logs (colaborador, status, data_hora)
+                    SELECT %s, 'Ausência de registro', %s
+                    WHERE NOT EXISTS (
+                        SELECT 1 FROM logs WHERE colaborador = %s 
+                        AND status = 'Ausência de registro' AND data_hora > %s
+                    )
+                ''', (u['usuario_login'], agora, u['usuario_login'], agora - timedelta(minutes=55)))
     conn.commit()
     cur.close()
     conn.close()
+
+# --- ROTAS ---
 
 @app.route('/')
 def index(): return render_template('index.html')
@@ -91,7 +109,7 @@ def api_login():
     data = request.json
     if data.get('user', '').lower() == "admin" and data.get('password') == ADMIN_PASS:
         resp = make_response(jsonify({"status": "sucesso"}))
-        resp.set_cookie('auth_admin', ADMIN_PASS, httponly=True)
+        resp.set_cookie('auth_admin', ADMIN_PASS, httponly=True, samesite='Lax')
         return resp
     return jsonify({"status": "erro"}), 401
 
@@ -131,16 +149,26 @@ def salvar_usuario():
     conn.close()
     return jsonify({"status": "ok"})
 
+@app.route('/admin/usuarios/<login>', methods=['DELETE'])
+def excluir_usuario(login):
+    if request.cookies.get('auth_admin') != ADMIN_PASS: return jsonify({"status": "erro"}), 403
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM logs WHERE colaborador = %s", (login,))
+    cur.execute("DELETE FROM usuarios WHERE usuario_login = %s", (login,))
+    conn.commit()
+    cur.close()
+    conn.close()
+    return jsonify({"status": "sucesso"})
+
 @app.route('/admin/exportar/excel')
 def exportar_excel():
-    if request.cookies.get('auth_admin') != ADMIN_PASS: return "Negado", 403
     processar_ausencias()
     conn = get_db_connection()
     df = pd.read_sql('''
-        SELECT l.data_hora as "Data/Hora", u.nome || ' ' || u.sobrenome as "Colaborador", 
-        u.empresa as "Empresa", u.sede as "Sede", u.turno as "Turno", u.portaria as "Posto", l.status as "Status"
-        FROM logs l JOIN usuarios u ON l.colaborador = u.usuario_login
-        ORDER BY l.data_hora DESC
+        SELECT l.data_hora as "Data", u.nome || ' ' || u.sobrenome as "Colaborador", 
+        u.empresa as "Empresa", u.sede as "Sede", u.turno as "Turno", l.status as "Status"
+        FROM logs l JOIN usuarios u ON l.colaborador = u.usuario_login ORDER BY l.data_hora DESC
     ''', conn)
     conn.close()
     output = io.BytesIO()
@@ -153,8 +181,6 @@ def exportar_excel():
 
 @app.route('/admin/exportar/pdf')
 def exportar_pdf():
-    if request.cookies.get('auth_admin') != ADMIN_PASS: return "Negado", 403
-    processar_ausencias()
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
     cur.execute('''
@@ -190,5 +216,12 @@ def validar():
     if row and row['codigo_atual'] == code:
         cur.execute("INSERT INTO logs (colaborador, status) VALUES (%s, 'Verificado, registro completo')", (user,))
         conn.commit()
+        cur.close()
+        conn.close()
         return jsonify({"status": "sucesso", "msg": "✅ Validado!"})
-    return jsonify({"status": "erro", "msg": "❌ Código incorreto"}), 401
+    cur.close()
+    conn.close()
+    return jsonify({"status": "erro", "msg": "❌ Inválido"}), 401
+
+if __name__ == '__main__':
+    app.run(debug=True)
