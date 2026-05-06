@@ -2,26 +2,27 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Refresh Admin - Gestão</title>
+    <title>Refresh Admin</title>
     <style>
         body { font-family: 'Segoe UI', sans-serif; margin: 0; display: flex; background: #f0f2f5; }
         .sidebar { width: 280px; background: #34495e; color: white; height: 100vh; padding: 25px; position: fixed; box-sizing: border-box; }
         .main { margin-left: 280px; padding: 30px; width: 100%; box-sizing: border-box; }
         .card { background: white; padding: 25px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 30px; }
-        .form-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; align-items: flex-end; }
-        .form-group { display: flex; flex-direction: column; }
+        .form-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; }
+        .form-group { display: flex; flex-direction: column; margin-bottom: 10px; }
         label { font-size: 0.8rem; margin-bottom: 5px; color: #666; }
         input, select { padding: 10px; border: 1px solid #ddd; border-radius: 4px; }
-        .btn-save { background: #2ecc71; color: white; border: none; padding: 11px; border-radius: 4px; cursor: pointer; font-weight: bold; margin-top: 10px; grid-column: span 4; }
+        .btn-save { background: #2ecc71; color: white; border: none; padding: 12px; border-radius: 4px; cursor: pointer; font-weight: bold; grid-column: span 4; margin-top: 10px; }
         .sidebar-nav { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; }
         .btn-sidebar { padding: 12px; border-radius: 4px; text-align: center; text-decoration: none; font-weight: bold; color: white; }
         .excel { background: #27ae60; } .pdf { background: #c0392b; } .sair { border: 1px solid white; margin-top: 20px; }
-        table { width: 100%; border-collapse: collapse; background: white; margin-top: 10px; font-size: 0.9rem; }
-        th { background: #34495e; color: white; padding: 12px; text-align: left; }
-        td { padding: 12px; border-bottom: 1px solid #eee; }
-        .badge { padding: 5px; border-radius: 4px; font-size: 0.7rem; font-weight: bold; }
+        table { width: 100%; border-collapse: collapse; background: white; margin-top: 10px; }
+        th { background: #34495e; color: white; padding: 12px; text-align: left; font-size: 0.9rem; }
+        td { padding: 12px; border-bottom: 1px solid #eee; font-size: 0.85rem; }
+        .badge { padding: 5px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: bold; }
         .status-ok { background: #d4edda; color: #155724; }
         .status-ausente { background: #f8d7da; color: #721c24; }
+        .btn-delete { background: #eb4d4b; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; }
     </style>
 </head>
 <body>
@@ -45,27 +46,27 @@
                 <div class="form-group"><label>Sede</label><input type="text" id="sede"></div>
                 <div class="form-group"><label>Turno</label>
                     <select id="turno">
-                        <option value="Manhã">Manhã</option>
-                        <option value="Tarde">Tarde</option>
-                        <option value="Noite">Noite</option>
+                        <option value="Manhã">Manhã (07h-19h)</option>
+                        <option value="Noite">Noite (19h-07h)</option>
                     </select>
                 </div>
                 <div class="form-group"><label>Portaria</label><input type="text" id="portaria"></div>
                 <div class="form-group"><label>Código</label><input type="text" id="codigo"></div>
-                <button class="btn-save" onclick="salvar()">Salvar Usuário</button>
+                <button class="btn-save" onclick="salvar()">Salvar Colaborador</button>
             </div>
         </div>
 
         <div class="card">
-            <h3>Monitoramento</h3>
+            <h3>Monitoramento em Tempo Real</h3>
             <table id="tabela">
                 <thead>
                     <tr>
-                        <th>Nome Completo</th>
+                        <th>Nome / Login</th>
                         <th>Empresa / Sede</th>
-                        <th>Turno/Portaria</th>
+                        <th>Turno / Posto</th>
                         <th>Último Registro</th>
                         <th>Status</th>
+                        <th>Ação</th>
                     </tr>
                 </thead>
                 <tbody></tbody>
@@ -81,13 +82,14 @@
             tbody.innerHTML = '';
             dados.forEach(u => {
                 let sClass = u.ultimo_status === 'Verificado, registro completo' ? 'status-ok' : 'status-ausente';
-                let dText = u.ultimo_registro ? new Date(u.ultimo_registro).toLocaleString('pt-BR') : 'Sem registro';
+                let dText = u.ultimo_registro ? new Date(u.ultimo_registro).toLocaleString('pt-BR') : '---';
                 tbody.innerHTML += `<tr>
-                    <td>${u.nome} ${u.sobrenome}<br><small>${u.usuario_login}</small></td>
+                    <td><b>${u.nome}</b><br><small>${u.usuario_login}</small></td>
                     <td>${u.empresa}<br><small>${u.sede}</small></td>
-                    <td>${u.turno} / ${u.portaria}</td>
+                    <td>${u.turno}<br><small>${u.portaria}</small></td>
                     <td>${dText}</td>
-                    <td><span class="badge ${sClass}">${u.ultimo_status || 'Ausência'}</span></td>
+                    <td><span class="badge ${sClass}">${u.ultimo_status || 'Pendente'}</span></td>
+                    <td><button class="btn-delete" onclick="excluirUser('${u.usuario_login}')">Excluir</button></td>
                 </tr>`;
             });
         }
@@ -108,8 +110,15 @@
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify(payload)
             });
-            if(res.ok) { alert("Salvo!"); carregar(); }
+            if(res.ok) { alert("Sucesso!"); carregar(); }
         }
+
+        async function excluirUser(login) {
+            if(!confirm(`Excluir ${login}?`)) return;
+            const res = await fetch(`/admin/usuarios/${login}`, { method: 'DELETE' });
+            if(res.ok) carregar();
+        }
+
         setInterval(carregar, 30000);
         carregar();
     </script>
