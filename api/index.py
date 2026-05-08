@@ -8,7 +8,7 @@ from psycopg2.extras import RealDictCursor
 
 # Bibliotecas para o PDF
 from reportlab.lib.pagesizes import A4
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet
 
@@ -17,7 +17,7 @@ app = Flask(__name__, template_folder='../templates')
 # Configurações de Ambiente
 ADMIN_PASS = os.environ.get('ADMIN_PASSWORD', 'admin123')
 
-# Configuração de Horários
+# Configuração de Horários dos Turnos
 HORARIOS_TURNOS = {
     "Manhã": {"inicio": 7, "fim": 19},
     "Noite": {"inicio": 19, "fim": 7}
@@ -40,7 +40,6 @@ def init_db():
     ''')
     cur.execute("ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS empresa TEXT;")
     cur.execute("ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS sede TEXT;")
-    
     cur.execute('''
         CREATE TABLE IF NOT EXISTS logs (
             id SERIAL PRIMARY KEY,
@@ -53,7 +52,6 @@ def init_db():
     cur.close()
     conn.close()
 
-# Inicialização do Banco
 try:
     init_db()
 except Exception as e:
@@ -71,7 +69,6 @@ def processar_ausencias():
         config = HORARIOS_TURNOS.get(u['turno'])
         if not config: continue
 
-        # Lógica de Turno (Manhã vs Noite que vira o dia)
         no_turno = (config["inicio"] <= hora_atual < config["fim"]) if config["inicio"] < config["fim"] \
                    else (hora_atual >= config["inicio"] or hora_atual < config["fim"])
 
@@ -91,7 +88,7 @@ def processar_ausencias():
     cur.close()
     conn.close()
 
-# --- ROTAS ---
+# --- ROTAS DE NAVEGAÇÃO E API ---
 
 @app.route('/')
 def index(): return render_template('index.html')
@@ -161,6 +158,8 @@ def excluir_usuario(login):
     conn.close()
     return jsonify({"status": "sucesso"})
 
+# --- EXPORTAÇÃO SEPARADA POR TURNO ---
+
 @app.route('/admin/exportar/excel')
 def exportar_excel():
     processar_ausencias()
@@ -171,35 +170,50 @@ def exportar_excel():
         FROM logs l JOIN usuarios u ON l.colaborador = u.usuario_login ORDER BY l.data_hora DESC
     ''', conn)
     conn.close()
+
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        df.to_excel(writer, index=False)
+        for turno in ["Manhã", "Noite"]:
+            df_turno = df[df['Turno'] == turno]
+            df_turno.to_excel(writer, index=False, sheet_name=f'Turno {turno}')
+    
     response = make_response(output.getvalue())
-    response.headers["Content-Disposition"] = "attachment; filename=relatorio.xlsx"
+    response.headers["Content-Disposition"] = "attachment; filename=relatorio_refresh.xlsx"
     response.headers["Content-type"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     return response
 
 @app.route('/admin/exportar/pdf')
 def exportar_pdf():
+    processar_ausencias()
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
     cur.execute('''
-        SELECT l.data_hora, u.nome || ' ' || u.sobrenome as nome, u.empresa, u.sede, l.status 
-        FROM logs l JOIN usuarios u ON l.colaborador = u.usuario_login ORDER BY l.data_hora DESC
+        SELECT l.data_hora, u.nome || ' ' || u.sobrenome as nome, u.empresa, u.turno, l.status 
+        FROM logs l JOIN usuarios u ON l.colaborador = u.usuario_login ORDER BY u.turno, l.data_hora DESC
     ''')
     dados = cur.fetchall()
     conn.close()
+
     output = io.BytesIO()
     doc = SimpleDocTemplate(output, pagesize=A4)
     elements = []
     styles = getSampleStyleSheet()
-    elements.append(Paragraph("Relatório de Atividades - Refresh System", styles['Title']))
-    table_data = [['Data', 'Nome', 'Empresa', 'Sede', 'Status']]
-    for d in dados:
-        table_data.append([d['data_hora'].strftime('%d/%m %H:%M'), d['nome'], d['empresa'], d['sede'], d['status']])
-    t = Table(table_data, colWidths=[70, 110, 100, 100, 130])
-    t.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,0),colors.grey),('TEXTCOLOR',(0,0),(-1,0),colors.whitesmoke),('GRID',(0,0),(-1,-1),0.5,colors.black),('FONTSIZE',(0,0),(-1,-1),8)]))
-    elements.append(t)
+    elements.append(Paragraph("Relatório de Atividades Refresh", styles['Title']))
+
+    for turno in ["Manhã", "Noite"]:
+        elements.append(Spacer(1, 12))
+        elements.append(Paragraph(f"Turno: {turno}", styles['Heading2']))
+        table_data = [['Data', 'Nome', 'Empresa', 'Status']]
+        for d in [x for x in dados if x['turno'] == turno]:
+            table_data.append([d['data_hora'].strftime('%d/%m %H:%M'), d['nome'], d['empresa'], d['status']])
+        
+        if len(table_data) > 1:
+            t = Table(table_data, colWidths=[80, 150, 100, 150])
+            t.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,0),colors.cadetblue),('TEXTCOLOR',(0,0),(-1,0),colors.whitesmoke),('GRID',(0,0),(-1,-1),0.5,colors.black),('FONTSIZE',(0,0),(-1,-1),8)]))
+            elements.append(t)
+        else:
+            elements.append(Paragraph("Sem registros.", styles['Italic']))
+
     doc.build(elements)
     response = make_response(output.getvalue())
     response.headers["Content-type"] = "application/pdf"
@@ -218,10 +232,10 @@ def validar():
         conn.commit()
         cur.close()
         conn.close()
-        return jsonify({"status": "sucesso", "msg": "✅ Validado!"})
+        return jsonify({"status": "sucesso", "msg": "✅ Validado com sucesso!"})
     cur.close()
     conn.close()
-    return jsonify({"status": "erro", "msg": "❌ Inválido"}), 401
+    return jsonify({"status": "erro", "msg": "❌ Código inválido"}), 401
 
 if __name__ == '__main__':
     app.run(debug=True)
