@@ -2,86 +2,57 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Refresh Admin</title>
+    <title>Refresh Admin - Gerencial</title>
     <style>
         body { font-family: 'Segoe UI', sans-serif; margin: 0; display: flex; background: #f0f2f5; }
-        .sidebar { width: 280px; background: #34495e; color: white; height: 100vh; padding: 25px; position: fixed; box-sizing: border-box; }
-        .main { margin-left: 280px; padding: 30px; width: 100%; box-sizing: border-box; }
-        .card { background: white; padding: 25px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 30px; }
-        .form-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; }
-        .form-group { display: flex; flex-direction: column; }
-        label { font-size: 0.8rem; margin-bottom: 5px; color: #666; }
-        input, select { padding: 10px; border: 1px solid #ddd; border-radius: 4px; }
-        .btn-save { background: #2ecc71; color: white; border: none; padding: 12px; border-radius: 4px; cursor: pointer; font-weight: bold; grid-column: span 4; margin-top: 10px; }
-        .sidebar-nav { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; }
-        .btn-sidebar { padding: 12px; border-radius: 4px; text-align: center; text-decoration: none; font-weight: bold; color: white; }
-        .excel { background: #27ae60; } .pdf { background: #c0392b; } .sair { border: 1px solid white; margin-top: 20px; }
-        table { width: 100%; border-collapse: collapse; background: white; margin-top: 10px; }
-        th { background: #34495e; color: white; padding: 12px; text-align: left; font-size: 0.85rem; }
-        td { padding: 12px; border-bottom: 1px solid #eee; font-size: 0.85rem; }
-        .badge { padding: 5px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: bold; }
-        .status-ok { background: #d4edda; color: #155724; }
-        .status-ausente { background: #f8d7da; color: #721c24; }
-        .btn-delete { background: #eb4d4b; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; }
+        .sidebar { width: 250px; background: #2c3e50; color: white; height: 100vh; padding: 20px; position: fixed; }
+        .main { margin-left: 250px; padding: 30px; width: 100%; }
+        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .form-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th { background: #34495e; color: white; padding: 12px; text-align: left; font-size: 13px; }
+        td { padding: 12px; border-bottom: 1px solid #eee; font-size: 13px; }
+        .btn-save { background: #27ae60; color: white; border: none; padding: 10px; cursor: pointer; border-radius: 4px; grid-column: span 3; }
+        .btn-del { background: #e74c3c; color: white; border: none; padding: 5px; border-radius: 3px; cursor: pointer; }
+        .badge { padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 11px; background: #dff9fb; color: #130f40; }
     </style>
 </head>
 <body>
     <div class="sidebar">
         <h2>Refresh Admin</h2>
-        <div class="sidebar-nav">
-            <a href="/admin/exportar/excel" class="btn-sidebar excel">📊 Relatório EXCEL</a>
-            <a href="/admin/exportar/pdf" class="btn-sidebar pdf">📄 Relatório PDF</a>
-            <a href="/" class="btn-sidebar sair">Sair</a>
-        </div>
+        <hr>
+        <a href="/admin/exportar/excel" style="color: #2ecc71; text-decoration: none; font-weight: bold;">📥 Baixar Relatório Excel</a>
+        <br><br>
+        <a href="/" style="color: #bdc3c7; text-decoration: none;">Sair</a>
     </div>
 
     <div class="main">
         <div class="card">
-            <h3>Cadastro de Colaborador</h3>
+            <h3>Cadastrar Novo Colaborador</h3>
             <div class="form-row">
-                <div class="form-group"><label>Nome</label><input type="text" id="nome"></div>
-                <div class="form-group"><label>Sobrenome</label><input type="text" id="sobrenome"></div>
-                <div class="form-group"><label>ID Usuário</label><input type="text" id="user_login"></div>
-                <div class="form-group"><label>Empresa</label><input type="text" id="empresa"></div>
-                <div class="form-group"><label>Sede</label><input type="text" id="sede"></div>
-                <div class="form-group"><label>Turno</label>
-                    <select id="turno">
-                        <option value="Manhã">Manhã (07h-19h)</option>
-                        <option value="Noite">Noite (19h-07h)</option>
-                    </select>
-                </div>
-                <div class="form-group"><label>Portaria</label><input type="text" id="portaria"></div>
-                <div class="form-group"><label>Código</label><input type="text" id="codigo"></div>
-                <button class="btn-save" onclick="salvar()">Salvar Colaborador</button>
+                <input type="text" id="nome" placeholder="Nome">
+                <input type="text" id="sobrenome" placeholder="Sobrenome">
+                <input type="text" id="user_login" placeholder="ID Usuário (Login)">
+                <input type="text" id="empresa" placeholder="Empresa">
+                <input type="text" id="sede" placeholder="Filial/Sede">
+                <input type="text" id="portaria" placeholder="Posto/Portaria">
+                <input type="text" id="codigo" placeholder="Código Único de Acesso">
+                <button class="btn-save" onclick="salvar()">Cadastrar Colaborador</button>
             </div>
         </div>
 
         <div class="card">
-            <h3 style="color: #f39c12;">☀️ Turno MANHÃ (07:00 - 19:00)</h3>
-            <table id="tabelaManha">
+            <h3>Monitoramento em Tempo Real</h3>
+            <table id="tabelaMonitor">
                 <thead>
                     <tr>
-                        <th>Nome / Login</th>
-                        <th>Empresa / Sede</th>
-                        <th>Último Registro</th>
+                        <th>Colaborador</th>
+                        <th>Empresa / Filial</th>
+                        <th>Posto</th>
+                        <th>Data/Hora Acesso</th>
+                        <th>Turno Informado</th>
                         <th>Status</th>
-                        <th>Ação</th>
-                    </tr>
-                </thead>
-                <tbody></tbody>
-            </table>
-        </div>
-
-        <div class="card">
-            <h3 style="color: #2c3e50;">🌙 Turno NOITE (19:00 - 07:00)</h3>
-            <table id="tabelaNoite">
-                <thead>
-                    <tr>
-                        <th>Nome / Login</th>
-                        <th>Empresa / Sede</th>
-                        <th>Último Registro</th>
-                        <th>Status</th>
-                        <th>Ação</th>
+                        <th>Ações</th>
                     </tr>
                 </thead>
                 <tbody></tbody>
@@ -93,55 +64,50 @@
         async function carregar() {
             const res = await fetch('/admin/status_usuarios');
             const dados = await res.json();
-            const tbodyManha = document.querySelector('#tabelaManha tbody');
-            const tbodyNoite = document.querySelector('#tabelaNoite tbody');
+            const tbody = document.querySelector('#tabelaMonitor tbody');
+            tbody.innerHTML = '';
             
-            tbodyManha.innerHTML = '';
-            tbodyNoite.innerHTML = '';
-
             dados.forEach(u => {
-                let sClass = u.ultimo_status === 'Verificado, registro completo' ? 'status-ok' : 'status-ausente';
-                let dText = u.ultimo_registro ? new Date(u.ultimo_registro).toLocaleString('pt-BR') : '---';
-                
-                let html = `<tr>
-                    <td><b>${u.nome}</b><br><small>${u.usuario_login}</small></td>
+                let dataFmt = u.ultimo_registro ? new Date(u.ultimo_registro).toLocaleString('pt-BR') : '---';
+                tbody.innerHTML += `<tr>
+                    <td><b>${u.nome} ${u.sobrenome}</b><br><small>${u.usuario_login}</small></td>
                     <td>${u.empresa}<br><small>${u.sede}</small></td>
-                    <td>${dText}</td>
-                    <td><span class="badge ${sClass}">${u.ultimo_status || 'Pendente'}</span></td>
-                    <td><button class="btn-delete" onclick="excluirUser('${u.usuario_login}')">Excluir</button></td>
+                    <td>${u.portaria}</td>
+                    <td>${dataFmt}</td>
+                    <td><span class="badge">${u.turno_registro || 'Não registrado'}</span></td>
+                    <td>${u.status || 'Pendente'}</td>
+                    <td><button class="btn-del" onclick="excluirUser('${u.usuario_login}')">Excluir</button></td>
                 </tr>`;
-
-                if(u.turno === "Manhã") tbodyManha.innerHTML += html;
-                else tbodyNoite.innerHTML += html;
             });
         }
 
         async function salvar() {
-            const payload = {
+            const d = {
                 nome: document.getElementById('nome').value,
                 sobrenome: document.getElementById('sobrenome').value,
                 usuario: document.getElementById('user_login').value,
                 empresa: document.getElementById('empresa').value,
                 sede: document.getElementById('sede').value,
-                turno: document.getElementById('turno').value,
                 portaria: document.getElementById('portaria').value,
                 codigo: document.getElementById('codigo').value
             };
-            const res = await fetch('/admin/usuarios', {
+            await fetch('/admin/usuarios', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(payload)
+                body: JSON.stringify(d)
             });
-            if(res.ok) { alert("Salvo!"); carregar(); }
+            alert("Colaborador salvo!");
+            carregar();
         }
 
         async function excluirUser(login) {
-            if(!confirm(`Excluir permanentemente o usuário ${login}?`)) return;
-            const res = await fetch(`/admin/usuarios/${login}`, { method: 'DELETE' });
-            if(res.ok) carregar();
+            if(confirm('Deseja excluir este colaborador?')) {
+                await fetch(`/admin/usuarios/${login}`, { method: 'DELETE' });
+                carregar();
+            }
         }
 
-        setInterval(carregar, 30000);
+        setInterval(carregar, 15000);
         carregar();
     </script>
 </body>
