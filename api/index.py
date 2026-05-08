@@ -6,12 +6,6 @@ from flask import Flask, render_template, request, jsonify, make_response
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
-# Bibliotecas para o PDF
-from reportlab.lib.pagesizes import A4
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
-from reportlab.lib import colors
-from reportlab.lib.styles import getSampleStyleSheet
-
 app = Flask(__name__, template_folder='../templates')
 ADMIN_PASS = os.environ.get('ADMIN_PASSWORD', 'admin123')
 
@@ -30,8 +24,6 @@ def init_db():
             codigo_atual TEXT
         );
     ''')
-    # Adiciona a coluna 'turno_registro' na tabela de LOGS para registrar o que o user escolheu
-    cur.execute("ALTER TABLE logs ADD COLUMN IF NOT EXISTS turno_registro TEXT;")
     cur.execute('''
         CREATE TABLE IF NOT EXISTS logs (
             id SERIAL PRIMARY KEY,
@@ -41,6 +33,7 @@ def init_db():
             turno_registro TEXT
         );
     ''')
+    cur.execute("ALTER TABLE logs ADD COLUMN IF NOT EXISTS turno_registro TEXT;")
     conn.commit()
     cur.close()
     conn.close()
@@ -75,7 +68,6 @@ def status_usuarios():
     if request.cookies.get('auth_admin') != ADMIN_PASS: return jsonify([]), 403
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
-    # Puxa os dados cruzados: Usuário + o último log dele
     cur.execute('''
         SELECT u.nome, u.sobrenome, u.usuario_login, u.empresa, u.sede, u.portaria,
                l.data_hora as ultimo_registro, l.turno_registro, l.status
@@ -104,7 +96,7 @@ def salvar_usuario():
         nome=EXCLUDED.nome, sobrenome=EXCLUDED.sobrenome, 
         portaria=EXCLUDED.portaria, empresa=EXCLUDED.empresa, sede=EXCLUDED.sede, 
         codigo_atual=EXCLUDED.codigo_atual
-    ''', (d['nome'], d['sobrenome'], d['usuario'].lower(), d['portaria'], d['empresa'], d['sede'], d['codigo']))
+    ''', (d['nome'], d['sobrenome'], d['usuario'].lower(), d['portaria'].upper(), d['empresa'], d['sede'], d['codigo']))
     conn.commit()
     cur.close()
     conn.close()
@@ -145,13 +137,12 @@ def validar():
     conn.close()
     return jsonify({"status": "erro", "msg": "❌ ID ou Código incorretos"}), 401
 
-# --- EXPORTAÇÃO ---
 @app.route('/admin/exportar/excel')
 def exportar_excel():
     conn = get_db_connection()
     df = pd.read_sql('''
         SELECT l.data_hora as "Data/Hora", u.nome || ' ' || u.sobrenome as "Colaborador", 
-        u.empresa as "Empresa", u.sede as "Filial", l.turno_registro as "Turno Selecionado", l.status as "Status"
+        u.empresa as "Empresa", u.sede as "Filial", u.portaria as "Portaria Original", l.turno_registro as "Turno Informado", l.status as "Status"
         FROM logs l JOIN usuarios u ON l.colaborador = u.usuario_login ORDER BY l.data_hora DESC
     ''', conn)
     conn.close()
