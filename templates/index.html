@@ -1,38 +1,53 @@
-<!DOCTYPE html>
-<html lang="pt-br">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Check-in Refresh</title>
-    <style>
-        body { font-family: sans-serif; background: #f0f2f5; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .card { background: white; padding: 40px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 350px; text-align: center; }
-        input { width: 100%; padding: 15px; margin: 10px 0; border: 2px solid #eee; border-radius: 8px; font-size: 16px; box-sizing: border-box; }
-        button { width: 100%; padding: 15px; background: #007bff; color: white; border: none; border-radius: 8px; font-size: 18px; cursor: pointer; font-weight: bold; }
-    </style>
-</head>
-<body>
-    <div class="card">
-        <h1 style="color: #007bff; margin-bottom: 5px;">Refresh</h1>
-        <p style="color: #666; margin-bottom: 25px;">Insira seu código de plantão</p>
-        <input type="text" id="user" placeholder="Seu Usuário">
-        <input type="password" id="code" placeholder="Código de 1 Hora">
-        <button onclick="validar()">Confirmar Presença</button>
-    </div>
-    <script>
-        async function validar() {
-            const btn = document.querySelector('button');
-            btn.disabled = true;
-            const res = await fetch('/colaborador/validar', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ usuario: document.getElementById('user').value, codigo: document.getElementById('code').value })
-            });
-            const data = await res.json();
-            alert(data.msg);
-            document.getElementById('code').value = '';
-            btn.disabled = false;
+<div style="position: fixed; top: 10px; right: 10px; z-index: 1000;">
+    <button id="btnConfig" onclick="ativarModoKiosk()" style="background: rgba(0,0,0,0.5); color: white; border: none; padding: 8px; border-radius: 5px; cursor: pointer;">
+        🖥️ Modo Totem (Tela Cheia)
+    </button>
+</div>
+
+<script>
+let wakeLock = null;
+
+// Função principal para ativar tela cheia e bloquear o repouso
+async function ativarModoKiosk() {
+    try {
+        // 1. Ativar Tela Cheia
+        if (!document.fullscreenElement) {
+            await document.documentElement.requestFullscreen();
         }
-    </script>
-</body>
-</html>
+
+        // 2. Bloquear inatividade (Wake Lock)
+        if ('wakeLock' in navigator) {
+            await solicitarWakeLock();
+        } else {
+            console.warn("Wake Lock não suportado neste navegador.");
+            alert("Atenção: Este navegador não suporta manter a tela acesa automaticamente.");
+        }
+    } catch (err) {
+        console.error(`Erro: ${err.message}`);
+    }
+}
+
+// Função para solicitar o bloqueio de repouso da tela
+async function solicitarWakeLock() {
+    try {
+        wakeLock = await navigator.wakeLock.request('screen');
+        
+        // Se o bloqueio for liberado (ex: o usuário minimizar a aba), tenta reativar
+        wakeLock.addEventListener('release', () => {
+            console.log('Wake Lock liberado.');
+        });
+        
+        alert("Modo Totem Ativado: Tela cheia e sempre acesa.");
+        document.getElementById('btnConfig').style.display = 'none'; // Esconde o botão após ativar
+    } catch (err) {
+        console.error(`${err.name}, ${err.message}`);
+    }
+}
+
+// Reativar Wake Lock se a página voltar a ficar visível (caso mude de aba e volte)
+document.addEventListener('visibilitychange', async () => {
+    if (wakeLock !== null && document.visibilityState === 'visible') {
+        await solicitarWakeLock();
+    }
+});
+</script>
