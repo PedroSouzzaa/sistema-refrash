@@ -1,53 +1,127 @@
-<div style="position: fixed; top: 10px; right: 10px; z-index: 1000;">
-    <button id="btnConfig" onclick="ativarModoKiosk()" style="background: rgba(0,0,0,0.5); color: white; border: none; padding: 8px; border-radius: 5px; cursor: pointer;">
-        🖥️ Modo Totem (Tela Cheia)
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Check-in Refresh</title>
+    <style>
+        body { font-family: sans-serif; background: #f0f2f5; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; overflow: hidden; }
+        .card { background: white; padding: 40px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 350px; text-align: center; z-index: 10; }
+        input { width: 100%; padding: 15px; margin: 10px 0; border: 2px solid #eee; border-radius: 8px; font-size: 16px; box-sizing: border-box; }
+        button { width: 100%; padding: 15px; background: #007bff; color: white; border: none; border-radius: 8px; font-size: 18px; cursor: pointer; font-weight: bold; transition: 0.3s; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        
+        /* Botão de Modo Totem */
+        .kiosk-control {
+            position: fixed;
+            top: 15px;
+            right: 15px;
+            background: rgba(0, 0, 0, 0.1);
+            color: #555;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: 0.3s;
+        }
+        .kiosk-control:hover { background: rgba(0, 0, 0, 0.2); }
+    </style>
+</head>
+<body>
+
+    <button class="kiosk-control" id="btnKiosk" onclick="ativarModoKiosk()">
+        🖥️ Ativar Modo Totem
     </button>
-</div>
 
-<script>
-let wakeLock = null;
+    <div class="card">
+        <h1 style="color: #007bff; margin-bottom: 5px;">Refresh</h1>
+        <p style="color: #666; margin-bottom: 25px;">Insira seu código de plantão</p>
+        <input type="text" id="user" placeholder="Seu Usuário">
+        <input type="password" id="code" placeholder="Código de 1 Hora">
+        <button id="btnValidar" onclick="validar()">Confirmar Presença</button>
+    </div>
 
-// Função principal para ativar tela cheia e bloquear o repouso
-async function ativarModoKiosk() {
-    try {
-        // 1. Ativar Tela Cheia
-        if (!document.fullscreenElement) {
-            await document.documentElement.requestFullscreen();
+    <script>
+        let wakeLock = null;
+
+        // --- FUNÇÃO DE VALIDAÇÃO ---
+        async function validar() {
+            const btn = document.getElementById('btnValidar');
+            const user = document.getElementById('user').value;
+            const code = document.getElementById('code').value;
+
+            if(!user || !code) {
+                alert("Preencha todos os campos!");
+                return;
+            }
+
+            btn.disabled = true;
+            try {
+                const res = await fetch('/colaborador/validar', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ usuario: user, codigo: code })
+                });
+                const data = await res.json();
+                alert(data.msg);
+                document.getElementById('code').value = '';
+            } catch (error) {
+                alert("Erro ao conectar com o servidor.");
+            } finally {
+                btn.disabled = false;
+            }
         }
 
-        // 2. Bloquear inatividade (Wake Lock)
-        if ('wakeLock' in navigator) {
-            await solicitarWakeLock();
-        } else {
-            console.warn("Wake Lock não suportado neste navegador.");
-            alert("Atenção: Este navegador não suporta manter a tela acesa automaticamente.");
-        }
-    } catch (err) {
-        console.error(`Erro: ${err.message}`);
-    }
-}
+        // --- FUNÇÕES DE MODO KIOSK (TELA CHEIA + WAKE LOCK) ---
+        async function ativarModoKiosk() {
+            try {
+                // 1. Solicita Tela Cheia
+                if (!document.fullscreenElement) {
+                    await document.documentElement.requestFullscreen();
+                }
 
-// Função para solicitar o bloqueio de repouso da tela
-async function solicitarWakeLock() {
-    try {
-        wakeLock = await navigator.wakeLock.request('screen');
-        
-        // Se o bloqueio for liberado (ex: o usuário minimizar a aba), tenta reativar
-        wakeLock.addEventListener('release', () => {
-            console.log('Wake Lock liberado.');
+                // 2. Solicita Wake Lock (impede a tela de apagar)
+                if ('wakeLock' in navigator) {
+                    solicitarWakeLock();
+                } else {
+                    alert("Atenção: Este navegador não suporta a função de manter a tela acesa.");
+                }
+
+                // Esconde o botão após ativar
+                document.getElementById('btnKiosk').style.display = 'none';
+            } catch (err) {
+                console.error(`Erro ao ativar modo Totem: ${err.message}`);
+            }
+        }
+
+        async function solicitarWakeLock() {
+            try {
+                wakeLock = await navigator.wakeLock.request('screen');
+                console.log('Wake Lock ativo: A tela não irá desligar.');
+
+                // Se o usuário sair da tela cheia ou minimizar, reativa quando voltar
+                wakeLock.addEventListener('release', () => {
+                    console.log('Wake Lock liberado.');
+                });
+            } catch (err) {
+                console.error(`${err.name}, ${err.message}`);
+            }
+        }
+
+        // Reativar Wake Lock automaticamente se a página ganhar foco novamente
+        document.addEventListener('visibilitychange', async () => {
+            if (wakeLock !== null && document.visibilityState === 'visible') {
+                solicitarWakeLock();
+            }
         });
-        
-        alert("Modo Totem Ativado: Tela cheia e sempre acesa.");
-        document.getElementById('btnConfig').style.display = 'none'; // Esconde o botão após ativar
-    } catch (err) {
-        console.error(`${err.name}, ${err.message}`);
-    }
-}
 
-// Reativar Wake Lock se a página voltar a ficar visível (caso mude de aba e volte)
-document.addEventListener('visibilitychange', async () => {
-    if (wakeLock !== null && document.visibilityState === 'visible') {
-        await solicitarWakeLock();
-    }
-});
-</script>
+        // Monitorar saída de tela cheia para mostrar o botão novamente
+        document.addEventListener('fullscreenchange', () => {
+            if (!document.fullscreenElement) {
+                document.getElementById('btnKiosk').style.display = 'block';
+            }
+        });
+    </script>
+</body>
+</html>
