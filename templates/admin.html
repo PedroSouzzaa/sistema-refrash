@@ -1,44 +1,145 @@
-<div class="card" style="margin-bottom: 20px; padding: 20px; background: #fff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-    <h3>📥 Gerar Relatórios Personalizados</h3>
-    <p style="font-size: 0.9rem; color: #666;">Selecione o período e turno desejado:</p>
-    
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; align-items: flex-end;">
-        <div class="form-group">
-            <label>Início</label>
-            <input type="datetime-local" id="filtro_inicio" style="width: 100%; padding: 8px;">
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Refresh Admin - Painel de Controle</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root { --primary: #2c3e50; --secondary: #34495e; --accent: #3498db; --success: #27ae60; --danger: #e74c3c; --light: #ecf0f1; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; margin: 0; display: flex; }
+        
+        /* Sidebar */
+        .sidebar { width: 250px; background: var(--primary); color: white; height: 100vh; position: fixed; padding: 20px; box-sizing: border-box; }
+        .sidebar h2 { font-size: 1.5rem; border-bottom: 1px solid var(--secondary); padding-bottom: 10px; }
+        .sidebar-nav { list-style: none; padding: 0; margin-top: 30px; }
+        .sidebar-nav li { padding: 15px; cursor: pointer; transition: 0.3s; border-radius: 5px; margin-bottom: 5px; }
+        .sidebar-nav li:hover { background: var(--secondary); }
+        .sidebar-nav li i { margin-right: 10px; }
+
+        /* Main Content */
+        .main-content { margin-left: 250px; padding: 30px; width: calc(100% - 250px); }
+        .card { background: white; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); padding: 20px; margin-bottom: 30px; }
+        h3 { margin-top: 0; color: var(--primary); display: flex; align-items: center; gap: 10px; }
+
+        /* Formulários */
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; }
+        .form-group { display: flex; flex-direction: column; }
+        label { font-size: 0.85rem; font-weight: bold; margin-bottom: 5px; color: #555; }
+        input, select { padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; }
+        button { padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; transition: 0.3s; }
+        .btn-save { background: var(--success); color: white; margin-top: 10px; }
+        .btn-save:hover { opacity: 0.9; }
+
+        /* Tabelas de Monitoramento */
+        .monitor-container { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }
+        th { background: var(--light); text-align: left; padding: 12px; border-bottom: 2px solid #ddd; }
+        td { padding: 10px; border-bottom: 1px solid #eee; }
+        .badge { padding: 4px 8px; border-radius: 12px; font-size: 11px; font-weight: bold; }
+        .badge-p1 { background: #e8f4fd; color: #2980b9; }
+        .badge-p2 { background: #fef9e7; color: #f39c12; }
+    </style>
+</head>
+<body>
+
+    <div class="sidebar">
+        <h2>Refresh Admin</h2>
+        <p>Bem-vindo, Administrador</p>
+        <ul class="sidebar-nav">
+            <li onclick="window.location.href='/'"><i class="fas fa-home"></i> Sair/Home</li>
+        </ul>
+    </div>
+
+    <div class="main-content">
+        <div class="card">
+            <h3><i class="fas fa-user-plus"></i> Cadastrar / Atualizar Colaborador</h3>
+            <div class="form-grid" id="userForm">
+                <div class="form-group"><label>Nome</label><input type="text" id="nome"></div>
+                <div class="form-group"><label>Sobrenome</label><input type="text" id="sobrenome"></div>
+                <div class="form-group"><label>ID Usuário</label><input type="text" id="usuario_login" placeholder="ex: joao.silva"></div>
+                <div class="form-group"><label>Código de Acesso</label><input type="text" id="codigo_atual"></div>
+                <div class="form-group"><label>Empresa</label><input type="text" id="empresa" placeholder="NBL"></div>
+                <div class="form-group"><label>Sede/Filial</label><input type="text" id="sede" placeholder="Matriz"></div>
+                <div class="form-group">
+                    <label>Portaria/Posto</label>
+                    <select id="portaria"><option value="P1">Portaria 1 (P1)</option><option value="P2">Portaria 2 (P2)</option></select>
+                </div>
+            </div>
+            <button class="btn-save" onclick="salvarColaborador()">Salvar Usuário</button>
         </div>
-        <div class="form-group">
-            <label>Fim</label>
-            <input type="datetime-local" id="filtro_fim" style="width: 100%; padding: 8px;">
+
+        <div class="card">
+            <h3><i class="fas fa-file-export"></i> Gerar Relatórios Personalizados</h3>
+            <div class="form-grid">
+                <div class="form-group"><label>Início</label><input type="datetime-local" id="f_inicio"></div>
+                <div class="form-group"><label>Fim</label><input type="datetime-local" id="f_fim"></div>
+                <div class="form-group">
+                    <label>Turno</label>
+                    <select id="f_turno">
+                        <option value="Todos">Todos os Turnos</option>
+                        <option value="Manhã">Manhã</option><option value="Tarde">Tarde</option><option value="Noite">Noite</option>
+                    </select>
+                </div>
+                <div class="form-group" style="flex-direction: row; gap: 10px; align-items: flex-end;">
+                    <button onclick="exportar('excel')" style="background:#27ae60; color:white; flex:1;">Excel</button>
+                    <button onclick="exportar('pdf')" style="background:#c0392b; color:white; flex:1;">PDF</button>
+                </div>
+            </div>
         </div>
-        <div class="form-group">
-            <label>Turno</label>
-            <select id="filtro_turno" style="width: 100%; padding: 8px;">
-                <option value="Todos">Todos os Turnos</option>
-                <option value="Manhã">Manhã (07h - 16h40)</option>
-                <option value="Tarde">Tarde (13h - 22h)</option>
-                <option value="Noite">Noite (22h - 07h)</option>
-            </select>
-        </div>
-        <div style="display: flex; gap: 10px;">
-            <button onclick="baixarRelatorio('excel')" style="flex: 1; background: #27ae60; color: white; border: none; padding: 10px; border-radius: 4px; cursor: pointer;">Excel</button>
-            <button onclick="baixarRelatorio('pdf')" style="flex: 1; background: #c0392b; color: white; border: none; padding: 10px; border-radius: 4px; cursor: pointer;">PDF</button>
+
+        <div class="monitor-container">
+            <div class="card">
+                <h3><span class="badge badge-p1">P1</span> Monitoramento Portaria 1</h3>
+                <table id="tableP1">
+                    <thead><tr><th>Colaborador</th><th>Turno</th><th>Hora</th></tr></thead>
+                    <tbody id="bodyP1"></tbody>
+                </table>
+            </div>
+            <div class="card">
+                <h3><span class="badge badge-p2">P2</span> Monitoramento Portaria 2</h3>
+                <table id="tableP2">
+                    <thead><tr><th>Colaborador</th><th>Turno</th><th>Hora</th></tr></thead>
+                    <tbody id="bodyP2"></tbody>
+                </table>
+            </div>
         </div>
     </div>
-</div>
 
-<script>
-function baixarRelatorio(formato) {
-    const inicio = document.getElementById('filtro_inicio').value;
-    const fim = document.getElementById('filtro_fim').value;
-    const turno = document.getElementById('filtro_turno').value;
+    <script>
+        async function salvarColaborador() {
+            const campos = ['nome', 'sobrenome', 'usuario_login', 'codigo_atual', 'empresa', 'sede', 'portaria'];
+            const data = {};
+            campos.forEach(c => data[c] = document.getElementById(c).value);
 
-    if (!inicio || !fim) {
-        alert("Selecione as datas de início e fim.");
-        return;
-    }
+            const res = await fetch('/admin/usuarios/salvar', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            });
+            if(res.ok) { alert("Sucesso!"); carregarDados(); }
+        }
 
-    const url = `/admin/exportar/${formato}?inicio=${inicio}&fim=${fim}&turno=${turno}`;
-    window.open(url, '_blank');
-}
-</script>
+        async function carregarDados() {
+            const res = await fetch('/admin/status_realtime');
+            const dados = await res.json();
+            
+            const render = (lista, id) => {
+                const html = lista.map(l => `<tr><td><b>${l.nome}</b><br><small>${l.empresa}</small></td><td>${l.turno_registro}</td><td>${l.hora}</td></tr>`).join('');
+                document.getElementById(id).innerHTML = html;
+            };
+
+            render(dados.filter(d => d.portaria === 'P1'), 'bodyP1');
+            render(dados.filter(d => d.portaria === 'P2'), 'bodyP2');
+        }
+
+        function exportar(fmt) {
+            const url = `/admin/exportar/${fmt}?inicio=${document.getElementById('f_inicio').value}&fim=${document.getElementById('f_fim').value}&turno=${document.getElementById('f_turno').value}`;
+            window.open(url, '_blank');
+        }
+
+        setInterval(carregarDados, 5000); // Atualiza a cada 5 segundos
+        carregarDados();
+    </script>
+</body>
+</html>
