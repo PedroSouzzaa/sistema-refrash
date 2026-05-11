@@ -2,53 +2,30 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Login | NBL LOG Admin</title>
-    <link rel="shortcut icon" href="/static/favicon.ico" type="image/x-icon">
+    <title>Login | NBL LOG</title>
+    <link rel="shortcut icon" href="/static/NBL_LOG_icone.jpg" type="image/jpeg">
     <style>
         body { 
-            font-family: sans-serif; 
-            background: #002855; 
-            display: flex; 
-            justify-content: center; 
-            align-items: center; 
-            height: 100vh; 
-            margin: 0; 
+            font-family: sans-serif; background: #002855; 
+            display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; 
         }
         .card { 
-            background: white; 
-            padding: 40px; 
-            border-radius: 15px; 
-            width: 320px; 
-            text-align: center; 
-            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+            background: white; padding: 40px; border-radius: 15px; 
+            width: 320px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.3);
         }
-        .logo { width: 200px; margin-bottom: 20px; }
-        input { 
-            width: 100%; 
-            padding: 12px; 
-            margin: 10px 0; 
-            border: 1px solid #ddd; 
-            border-radius: 6px; 
-            box-sizing: border-box; 
-        }
+        .logo { width: 120px; margin-bottom: 20px; border-radius: 10px; }
+        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
         button { 
-            width: 100%; 
-            padding: 12px; 
-            background: #f39200; 
-            color: white; 
-            border: none; 
-            border-radius: 6px; 
-            cursor: pointer; 
-            font-weight: bold; 
-            font-size: 16px;
+            width: 100%; padding: 12px; background: #f39200; color: white; 
+            border: none; border-radius: 6px; cursor: pointer; font-weight: bold; 
         }
-        h2 { color: #002855; font-size: 1.2rem; margin-bottom: 20px; }
+        h2 { color: #002855; font-size: 1.1rem; margin-bottom: 20px; text-transform: uppercase; }
     </style>
 </head>
 <body>
     <div class="card">
-        <img src="/static/logo_nbl.png" alt="NBL LOG" class="logo">
-        <h2>Acesso Administrativo</h2>
+        <img src="/static/NBL_LOG_icone.jpg" alt="NBL LOG" class="logo">
+        <h2>Acesso Admin</h2>
         <input type="text" id="u" placeholder="Usuário">
         <input type="password" id="p" placeholder="Senha">
         <button onclick="logar()">ENTRAR</button>
@@ -61,7 +38,7 @@
                 body: JSON.stringify({user: document.getElementById('u').value, password: document.getElementById('p').value})
             });
             if(res.ok) location.href = '/admin';
-            else alert("Credenciais incorretas");
+            else alert("Erro no login");
         }
     </script>
 </body>
