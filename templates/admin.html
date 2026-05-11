@@ -1,173 +1,49 @@
-<!DOCTYPE html>
-<html lang="pt-br">
-<head>
-    <meta charset="UTF-8">
-    <title>Refresh Admin - Monitoramento por Posto</title>
-    <style>
-        body { font-family: 'Segoe UI', sans-serif; margin: 0; display: flex; background: #f0f2f5; }
-        .sidebar { width: 250px; background: #2c3e50; color: white; height: 100vh; padding: 20px; position: fixed; }
-        .main { margin-left: 250px; padding: 30px; width: 100%; box-sizing: border-box; }
-        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 30px; }
-        .form-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-        th { background: #34495e; color: white; padding: 12px; text-align: left; font-size: 13px; }
-        td { padding: 12px; border-bottom: 1px solid #eee; font-size: 13px; }
-        .btn-save { background: #27ae60; color: white; border: none; padding: 12px; cursor: pointer; border-radius: 4px; grid-column: span 4; font-weight: bold; }
-        .btn-del { background: #e74c3c; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; font-size: 11px; }
-        .badge-turno { padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 11px; background: #e0f7fa; color: #006064; }
-        .badge-status { padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 11px; }
-        .status-verificado { background: #c8e6c9; color: #2e7d32; }
-        .status-pendente { background: #ffecb3; color: #ff8f00; }
-        h3 { border-left: 5px solid #007bff; padding-left: 10px; margin-top: 0; color: #333; }
-        .posto-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
-    </style>
-</head>
-<body>
-    <div class="sidebar">
-        <h2>Refresh Admin</h2>
-        <hr style="opacity: 0.2;">
-        <div style="margin-top: 20px;">
-            <a href="/admin/exportar/excel" style="color: #2ecc71; text-decoration: none; font-weight: bold; display: block; margin-bottom: 15px;">📥 Relatório Geral (Excel)</a>
-            <a href="/" style="color: #bdc3c7; text-decoration: none; display: block;">Sair do Sistema</a>
+<div class="card">
+    <h3>📥 Gerar Relatórios Personalizados</h3>
+    <p style="font-size: 0.9rem; color: #666;">Selecione o período, horário e turno desejado:</p>
+    
+    <div class="form-row" style="grid-template-columns: repeat(4, 1fr);">
+        <div class="form-group">
+            <label>Início (Dia e Hora)</label>
+            <input type="datetime-local" id="filtro_inicio">
+        </div>
+        <div class="form-group">
+            <label>Fim (Dia e Hora)</label>
+            <input type="datetime-local" id="filtro_fim">
+        </div>
+        <div class="form-group">
+            <label>Filtrar por Turno</label>
+            <select id="filtro_turno">
+                <option value="Todos">Todos os Turnos</option>
+                <option value="Manhã">Manhã (07h - 16h40)</option>
+                <option value="Tarde">Tarde (13h - 22h)</option>
+                <option value="Noite">Noite (22h - 07h)</option>
+            </select>
+        </div>
+        <div class="form-group" style="display: flex; flex-direction: row; gap: 10px; align-items: flex-end;">
+            <button onclick="baixarRelatorio('excel')" style="background: #27ae60; color: white; border: none; padding: 10px; border-radius: 4px; cursor: pointer; flex: 1;">Excel</button>
+            <button onclick="baixarRelatorio('pdf')" style="background: #c0392b; color: white; border: none; padding: 10px; border-radius: 4px; cursor: pointer; flex: 1;">PDF</button>
         </div>
     </div>
+</div>
 
-    <div class="main">
-        <div class="card">
-            <h3>Cadastrar / Atualizar Colaborador</h3>
-            <div class="form-row">
-                <input type="text" id="nome" placeholder="Nome">
-                <input type="text" id="sobrenome" placeholder="Sobrenome">
-                <input type="text" id="user_login" placeholder="ID Usuário (ex: joao.silva)">
-                <input type="text" id="empresa" placeholder="Empresa">
-                <input type="text" id="sede" placeholder="Filial/Sede">
-                <select id="portaria">
-                    <option value="P1">Posto P1</option>
-                    <option value="P2">Posto P2</option>
-                </select>
-                <input type="text" id="codigo" placeholder="Código de Acesso">
-                <button class="btn-save" onclick="salvar()">Salvar no Banco de Dados</button>
-            </div>
-        </div>
+<script>
+function baixarRelatorio(formato) {
+    const inicio = document.getElementById('filtro_inicio').value;
+    const fim = document.getElementById('filtro_fim').value;
+    const turno = document.getElementById('filtro_turno').value;
 
-        <div class="card">
-            <div class="posto-header">
-                <h3 style="border-color: #e67e22;">📍 Monitoramento em Tempo Real - POSTO P1</h3>
-            </div>
-            <table id="tabelaP1">
-                <thead>
-                    <tr>
-                        <th>Colaborador</th>
-                        <th>Empresa / Filial</th>
-                        <th>Data/Hora Acesso</th>
-                        <th>Turno Informado</th>
-                        <th>Status</th>
-                        <th>Ações</th>
-                    </tr>
-                </thead>
-                <tbody></tbody>
-            </table>
-        </div>
+    if (!inicio || !fim) {
+        alert("Por favor, selecione as datas de início e fim.");
+        return;
+    }
 
-        <div class="card">
-            <div class="posto-header">
-                <h3 style="border-color: #9b59b6;">📍 Monitoramento em Tempo Real - POSTO P2</h3>
-            </div>
-            <table id="tabelaP2">
-                <thead>
-                    <tr>
-                        <th>Colaborador</th>
-                        <th>Empresa / Filial</th>
-                        <th>Data/Hora Acesso</th>
-                        <th>Turno Informado</th>
-                        <th>Status</th>
-                        <th>Ações</th>
-                    </tr>
-                </thead>
-                <tbody></tbody>
-            </table>
-        </div>
-    </div>
+    // Constrói a URL com os filtros
+    const url = `/admin/exportar/${formato}?inicio=${inicio}&fim=${fim}&turno=${turno}`;
+    
+    // Abre em uma nova aba para download
+    window.open(url, '_blank');
+}
 
-    <script>
-        async function carregar() {
-            try {
-                const res = await fetch('/admin/status_usuarios');
-                const dados = await res.json();
-                
-                const tbodyP1 = document.querySelector('#tabelaP1 tbody');
-                const tbodyP2 = document.querySelector('#tabelaP2 tbody');
-                
-                tbodyP1.innerHTML = '';
-                tbodyP2.innerHTML = '';
-
-                dados.forEach(u => {
-                    const dataFmt = u.ultimo_registro ? new Date(u.ultimo_registro).toLocaleString('pt-BR') : 'Sem registro';
-                    const statusClass = u.status === 'Verificado' ? 'status-verificado' : 'status-pendente';
-                    
-                    const linhaHtml = `
-                        <tr>
-                            <td><b>${u.nome} ${u.sobrenome}</b><br><small>${u.usuario_login}</small></td>
-                            <td>${u.empresa}<br><small>${u.sede}</small></td>
-                            <td>${dataFmt}</td>
-                            <td><span class="badge-turno">${u.turno_registro || 'Não informado'}</span></td>
-                            <td><span class="badge-status ${statusClass}">${u.status || 'Ausência'}</span></td>
-                            <td><button class="btn-del" onclick="excluirUser('${u.usuario_login}')">Excluir</button></td>
-                        </tr>
-                    `;
-
-                    // Filtra dinamicamente para qual tabela a linha vai
-                    if (u.portaria === 'P1') {
-                        tbodyP1.innerHTML += linhaHtml;
-                    } else if (u.portaria === 'P2') {
-                        tbodyP2.innerHTML += linhaHtml;
-                    }
-                });
-            } catch (e) {
-                console.error("Erro ao carregar dados:", e);
-            }
-        }
-
-        async function salvar() {
-            const d = {
-                nome: document.getElementById('nome').value,
-                sobrenome: document.getElementById('sobrenome').value,
-                usuario: document.getElementById('user_login').value,
-                empresa: document.getElementById('empresa').value,
-                sede: document.getElementById('sede').value,
-                portaria: document.getElementById('portaria').value,
-                codigo: document.getElementById('codigo').value
-            };
-
-            if(!d.nome || !d.usuario || !d.codigo) return alert("Preencha os campos obrigatórios!");
-
-            const res = await fetch('/admin/usuarios', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(d)
-            });
-            
-            if(res.ok) {
-                alert("Colaborador salvo com sucesso!");
-                carregar();
-                // Limpa campos
-                document.getElementById('nome').value = '';
-                document.getElementById('sobrenome').value = '';
-                document.getElementById('user_login').value = '';
-                document.getElementById('codigo').value = '';
-            }
-        }
-
-        async function excluirUser(login) {
-            if(confirm(`Deseja realmente excluir o colaborador ${login}?`)) {
-                await fetch(`/admin/usuarios/${login}`, { method: 'DELETE' });
-                carregar();
-            }
-        }
-
-        // Atualização automática a cada 15 segundos
-        setInterval(carregar, 15000);
-        carregar();
-    </script>
-</body>
-</html>
+// ... manter as outras funções salvar(), carregar(), etc.
+</script>
