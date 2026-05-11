@@ -39,7 +39,7 @@ def api_login():
         return resp
     return jsonify({"status": "erro"}), 401
 
-# --- GESTÃO DE USUÁRIOS (LISTAR, SALVAR, EXCLUIR) ---
+# --- GESTÃO DE USUÁRIOS ---
 
 @app.route('/admin/usuarios/listar')
 def listar_usuarios():
@@ -64,7 +64,7 @@ def salvar_usuario():
         nome = EXCLUDED.nome, sobrenome = EXCLUDED.sobrenome, 
         codigo_atual = EXCLUDED.codigo_atual, empresa = EXCLUDED.empresa, sede = EXCLUDED.sede
     '''
-    cur.execute(query, (data['nome'], data['sobrenome'], data['usuario_login'], 
+    cur.execute(query, (data['nome'], data['sobrenome'], data['usuario_login'].lower(), 
                         data['codigo_atual'], data['empresa'], data['sede']))
     conn.commit()
     cur.close(); conn.close()
@@ -80,7 +80,8 @@ def excluir_usuario(login):
     conn.close()
     return jsonify({"status": "sucesso"})
 
-# --- VALIDAÇÃO (CHECK-IN) ---
+# --- MONITORAMENTO E VALIDAÇÃO ---
+
 @app.route('/colaborador/validar', methods=['POST'])
 def validar():
     data = request.json
@@ -97,7 +98,6 @@ def validar():
     conn.close()
     return jsonify({"status": "erro", "msg": "❌ ID ou Código incorretos"}), 401
 
-# --- MONITORAMENTO ---
 @app.route('/admin/status_realtime')
 def status_realtime():
     try:
@@ -116,32 +116,56 @@ def status_realtime():
         return jsonify(logs)
     except: return jsonify([])
 
-# --- EXPORTAR ---
+# --- EXPORTAÇÃO DE RELATÓRIOS ---
+
 @app.route('/admin/exportar/<formato>')
 def exportar_relatorio(formato):
     if request.cookies.get('auth_admin') != ADMIN_PASS: return "Acesso negado", 403
-    inicio = request.args.get('inicio'); fim = request.args.get('fim'); turno = request.args.get('turno')
+    inicio = request.args.get('inicio')
+    fim = request.args.get('fim')
+    turno = request.args.get('turno')
+    
     conn = get_db_connection()
-    query = "SELECT l.data_hora, u.nome || ' ' || u.sobrenome as nome, u.empresa, l.portaria, l.turno_registro FROM logs l JOIN usuarios u ON l.colaborador = u.usuario_login WHERE 1=1"
+    query = """
+        SELECT 
+            to_char(l.data_hora, 'DD/MM/YYYY HH24:MI') as "Data/Hora",
+            u.nome || ' ' || u.sobrenome as "Colaborador",
+            u.empresa as "Empresa",
+            u.sede as "Filial",
+            l.portaria as "Portaria",
+            l.turno_registro as "Turno"
+        FROM logs l 
+        JOIN usuarios u ON l.colaborador = u.usuario_login 
+        WHERE 1=1
+    """
     params = []
-    if inicio and fim: query += " AND l.data_hora BETWEEN %s AND %s"; params.extend([inicio, fim])
-    if turno and turno != 'Todos': query += " AND l.turno_registro LIKE %s"; params.append(f"%{turno}%")
+    if inicio and fim:
+        query += " AND l.data_hora BETWEEN %s AND %s"
+        params.extend([inicio, fim])
+    if turno and turno != 'Todos':
+        query += " AND l.turno_registro = %s"
+        params.append(turno)
+    
+    query += " ORDER BY l.data_hora DESC"
     df = pd.read_sql(query, conn, params=params)
     conn.close()
+
     if formato == 'excel':
         output = io.BytesIO()
-        with pd.ExcelWriter(output, engine='openpyxl') as writer: df.to_excel(writer, index=False)
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            df.to_excel(writer, index=False)
         resp = make_response(output.getvalue())
         resp.headers["Content-Disposition"] = "attachment; filename=relatorio.xlsx"
         resp.headers["Content-type"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         return resp
+    
     output = io.BytesIO()
     doc = SimpleDocTemplate(output, pagesize=A4)
     styles = getSampleStyleSheet()
     elements = [Paragraph("Relatório Refresh", styles['Title']), Spacer(1, 12)]
     dados = [df.columns.to_list()] + df.values.tolist()
     t = Table(dados)
-    t.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,0),colors.grey),('GRID',(0,0),(-1,-1),0.5,colors.black)]))
+    t.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,0),colors.grey),('GRID',(0,0),(-1,-1),0.5,colors.black),('FONTSIZE',(0,0),(-1,-1),8)]))
     elements.append(t)
     doc.build(elements)
     resp = make_response(output.getvalue())
