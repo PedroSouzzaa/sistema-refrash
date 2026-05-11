@@ -1,28 +1,28 @@
-<div class="card">
+<div class="card" style="margin-bottom: 20px; padding: 20px; background: #fff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
     <h3>📥 Gerar Relatórios Personalizados</h3>
-    <p style="font-size: 0.9rem; color: #666;">Selecione o período, horário e turno desejado:</p>
+    <p style="font-size: 0.9rem; color: #666;">Selecione o período e turno desejado:</p>
     
-    <div class="form-row" style="grid-template-columns: repeat(4, 1fr);">
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; align-items: flex-end;">
         <div class="form-group">
-            <label>Início (Dia e Hora)</label>
-            <input type="datetime-local" id="filtro_inicio">
+            <label>Início</label>
+            <input type="datetime-local" id="filtro_inicio" style="width: 100%; padding: 8px;">
         </div>
         <div class="form-group">
-            <label>Fim (Dia e Hora)</label>
-            <input type="datetime-local" id="filtro_fim">
+            <label>Fim</label>
+            <input type="datetime-local" id="filtro_fim" style="width: 100%; padding: 8px;">
         </div>
         <div class="form-group">
-            <label>Filtrar por Turno</label>
-            <select id="filtro_turno">
+            <label>Turno</label>
+            <select id="filtro_turno" style="width: 100%; padding: 8px;">
                 <option value="Todos">Todos os Turnos</option>
                 <option value="Manhã">Manhã (07h - 16h40)</option>
                 <option value="Tarde">Tarde (13h - 22h)</option>
                 <option value="Noite">Noite (22h - 07h)</option>
             </select>
         </div>
-        <div class="form-group" style="display: flex; flex-direction: row; gap: 10px; align-items: flex-end;">
-            <button onclick="baixarRelatorio('excel')" style="background: #27ae60; color: white; border: none; padding: 10px; border-radius: 4px; cursor: pointer; flex: 1;">Excel</button>
-            <button onclick="baixarRelatorio('pdf')" style="background: #c0392b; color: white; border: none; padding: 10px; border-radius: 4px; cursor: pointer; flex: 1;">PDF</button>
+        <div style="display: flex; gap: 10px;">
+            <button onclick="baixarRelatorio('excel')" style="flex: 1; background: #27ae60; color: white; border: none; padding: 10px; border-radius: 4px; cursor: pointer;">Excel</button>
+            <button onclick="baixarRelatorio('pdf')" style="flex: 1; background: #c0392b; color: white; border: none; padding: 10px; border-radius: 4px; cursor: pointer;">PDF</button>
         </div>
     </div>
 </div>
@@ -34,16 +34,11 @@ function baixarRelatorio(formato) {
     const turno = document.getElementById('filtro_turno').value;
 
     if (!inicio || !fim) {
-        alert("Por favor, selecione as datas de início e fim.");
+        alert("Selecione as datas de início e fim.");
         return;
     }
 
-    // Constrói a URL com os filtros
     const url = `/admin/exportar/${formato}?inicio=${inicio}&fim=${fim}&turno=${turno}`;
-    
-    // Abre em uma nova aba para download
     window.open(url, '_blank');
 }
-
-// ... manter as outras funções salvar(), carregar(), etc.
 </script>
