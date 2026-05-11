@@ -3,104 +3,98 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Refresh Admin - Gestão Central</title>
+    <title>Admin | NBL LOG</title>
+    <link rel="shortcut icon" href="/static/favicon.ico" type="image/x-icon">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        :root { --primary: #2c3e50; --success: #27ae60; --danger: #e74c3c; --bg: #f4f7f6; --accent: #3498db; }
+        :root { 
+            --nbl-blue: #002855; 
+            --nbl-orange: #f39200; 
+            --bg: #f0f3f6; 
+        }
         body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; display: flex; }
-        .sidebar { width: 250px; background: var(--primary); color: white; height: 100vh; position: fixed; padding: 20px; box-sizing: border-box; }
-        .main { margin-left: 250px; padding: 30px; width: calc(100% - 250px); box-sizing: border-box; }
-        .card { background: white; border-radius: 8px; padding: 20px; margin-bottom: 25px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        h3 { margin-top: 0; color: var(--primary); border-left: 4px solid var(--accent); padding-left: 10px; }
-        .grid-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 15px; }
-        .form-group { display: flex; flex-direction: column; }
-        label { font-size: 0.85rem; font-weight: bold; margin-bottom: 5px; color: #555; }
-        input, select { padding: 10px; border: 1px solid #ddd; border-radius: 4px; }
-        .btn { padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; color: white; transition: 0.3s; }
-        .btn-success { background: var(--success); }
-        .btn-danger { background: var(--danger); padding: 5px 10px; }
-        .btn-pdf { background: #c0392b; }
-        .btn-excel { background: #217346; }
+        
+        .sidebar { 
+            width: 260px; background: var(--nbl-blue); color: white; height: 100vh; 
+            position: fixed; padding: 20px; box-sizing: border-box; display: flex; flex-direction: column;
+        }
+        .sidebar-logo { text-align: center; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .sidebar-logo img { width: 180px; }
+
+        .main { margin-left: 260px; padding: 30px; width: calc(100% - 260px); box-sizing: border-box; }
+        
+        .card { background: white; border-radius: 12px; padding: 25px; margin-bottom: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        h3 { margin-top: 0; color: var(--nbl-blue); border-left: 5px solid var(--nbl-orange); padding-left: 15px; font-size: 1.1rem; text-transform: uppercase; }
+
+        .grid-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-top: 15px; }
+        input, select { padding: 12px; border: 1px solid #dce4ec; border-radius: 6px; font-size: 14px; }
+
+        .btn { padding: 12px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.3s; display: inline-flex; align-items: center; gap: 8px; }
+        .btn-orange { background: var(--nbl-orange); color: white; }
+        .btn-danger { background: #e74c3c; color: white; }
+        .btn-excel { background: #217346; color: white; }
+        .btn-pdf { background: #c0392b; color: white; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th { text-align: left; padding: 15px; background: #f8f9fb; color: var(--nbl-blue); border-bottom: 2px solid #edf2f7; font-size: 13px; }
+        td { padding: 15px; border-bottom: 1px solid #edf2f7; font-size: 14px; }
+        
         .monitor-split { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-        table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 10px; }
-        th { text-align: left; padding: 12px; background: #f8f9fa; border-bottom: 2px solid #eee; }
-        td { padding: 12px; border-bottom: 1px solid #eee; }
-        .user-name { font-weight: bold; color: var(--primary); display: block; }
-        .user-meta { font-size: 11px; color: #7f8c8d; }
     </style>
 </head>
 <body>
-
     <div class="sidebar">
-        <h2>Refresh Admin</h2>
-        <button onclick="location.href='/'" class="btn" style="background:#34495e; width:100%"><i class="fas fa-sign-out-alt"></i> Sair</button>
+        <div class="sidebar-logo">
+            <img src="/static/logo_nbl.png" alt="NBL LOG">
+        </div>
+        <button onclick="location.href='/'" class="btn" style="background: rgba(255,255,255,0.1); color: white; width: 100%; justify-content: center;">
+            <i class="fas fa-desktop"></i> Ir para Totem
+        </button>
     </div>
 
     <div class="main">
         <div class="card">
-            <h3><i class="fas fa-user-plus"></i> Novo Colaborador</h3>
+            <h3>Gestão de Colaboradores</h3>
             <div class="grid-form">
-                <div class="form-group"><label>Nome</label><input type="text" id="nome"></div>
-                <div class="form-group"><label>Sobrenome</label><input type="text" id="sobrenome"></div>
-                <div class="form-group"><label>Usuário (Login)</label><input type="text" id="usuario_login"></div>
-                <div class="form-group"><label>Código</label><input type="text" id="codigo_atual"></div>
-                <div class="form-group"><label>Empresa</label><input type="text" id="empresa"></div>
-                <div class="form-group"><label>Filial/Sede</label><input type="text" id="sede"></div>
+                <input type="text" id="nome" placeholder="Nome">
+                <input type="text" id="sobrenome" placeholder="Sobrenome">
+                <input type="text" id="usuario_login" placeholder="Login">
+                <input type="text" id="codigo_atual" placeholder="Código">
+                <input type="text" id="empresa" placeholder="Empresa">
+                <input type="text" id="sede" placeholder="Filial">
             </div>
-            <button onclick="salvarUsuario()" class="btn btn-success" style="margin-top:15px;"><i class="fas fa-save"></i> Salvar Usuário</button>
+            <button onclick="salvarUsuario()" class="btn btn-orange" style="margin-top: 20px;"><i class="fas fa-plus"></i> CADASTRAR</button>
         </div>
 
         <div class="card">
-            <h3><i class="fas fa-file-export"></i> Relatórios do Monitoramento</h3>
+            <h3>Relatórios</h3>
             <div class="grid-form">
-                <div class="form-group"><label>Início</label><input type="datetime-local" id="rel_inicio"></div>
-                <div class="form-group"><label>Fim</label><input type="datetime-local" id="rel_fim"></div>
-                <div class="form-group">
-                    <label>Turno</label>
-                    <select id="rel_turno">
-                        <option value="Todos">Todos</option>
-                        <option value="Manhã">Manhã</option>
-                        <option value="Tarde">Tarde</option>
-                        <option value="Noite">Noite</option>
-                    </select>
-                </div>
-                <div class="form-group" style="justify-content: flex-end; flex-direction: row; gap: 10px;">
-                    <button onclick="exportar('excel')" class="btn btn-excel">Excel</button>
+                <input type="datetime-local" id="rel_inicio">
+                <input type="datetime-local" id="rel_fim">
+                <select id="rel_turno">
+                    <option value="Todos">Todos os Turnos</option>
+                    <option value="Manhã">Manhã</option>
+                    <option value="Tarde">Tarde</option>
+                    <option value="Noite">Noite</option>
+                </select>
+                <div style="display: flex; gap: 10px;">
+                    <button onclick="exportar('excel')" class="btn btn-excel">EXCEL</button>
                     <button onclick="exportar('pdf')" class="btn btn-pdf">PDF</button>
                 </div>
             </div>
         </div>
 
         <div class="card">
-            <h3><i class="fas fa-users"></i> Colaboradores Cadastrados</h3>
+            <h3>Lista de Cadastrados</h3>
             <table>
-                <thead>
-                    <tr>
-                        <th>Nome</th>
-                        <th>Login</th>
-                        <th>Empresa/Sede</th>
-                        <th>Ações</th>
-                    </tr>
-                </thead>
+                <thead><tr><th>Nome</th><th>Login</th><th>Empresa/Filial</th><th>Ações</th></tr></thead>
                 <tbody id="listaUsuarios"></tbody>
             </table>
         </div>
 
         <div class="monitor-split">
-            <div class="card">
-                <h3>🔵 Portaria 1 (P1)</h3>
-                <table>
-                    <thead><tr><th>Colaborador</th><th>Turno</th><th>Hora</th></tr></thead>
-                    <tbody id="bodyP1"></tbody>
-                </table>
-            </div>
-            <div class="card">
-                <h3>🟡 Portaria 2 (P2)</h3>
-                <table>
-                    <thead><tr><th>Colaborador</th><th>Turno</th><th>Hora</th></tr></thead>
-                    <tbody id="bodyP2"></tbody>
-                </table>
-            </div>
+            <div class="card"><h3>Portaria 1 (P1)</h3><table><tbody id="bodyP1"></tbody></table></div>
+            <div class="card"><h3>Portaria 2 (P2)</h3><table><tbody id="bodyP2"></tbody></table></div>
         </div>
     </div>
 
@@ -114,29 +108,25 @@
                 empresa: document.getElementById('empresa').value,
                 sede: document.getElementById('sede').value
             };
-            if(!data.usuario_login || !data.codigo_atual) return alert("Preencha os campos obrigatórios.");
-            const res = await fetch('/admin/usuarios/salvar', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
-            if(res.ok) { alert("Sucesso!"); listarUsuarios(); carregarMonitoramento(); }
+            await fetch('/admin/usuarios/salvar', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
+            alert("Processado!"); listarUsuarios();
         }
 
         async function listarUsuarios() {
             const res = await fetch('/admin/usuarios/listar');
             const dados = await res.json();
-            const lista = document.getElementById('listaUsuarios');
-            lista.innerHTML = '';
-            dados.forEach(u => {
-                lista.innerHTML += `
-                    <tr>
-                        <td>${u.nome} ${u.sobrenome}</td>
-                        <td>${u.usuario_login}</td>
-                        <td>${u.empresa} - ${u.sede}</td>
-                        <td><button class="btn btn-danger" onclick="excluirUsuario('${u.usuario_login}')"><i class="fas fa-trash"></i></button></td>
-                    </tr>`;
-            });
+            document.getElementById('listaUsuarios').innerHTML = dados.map(u => `
+                <tr>
+                    <td>${u.nome} ${u.sobrenome}</td>
+                    <td>${u.usuario_login}</td>
+                    <td>${u.empresa} - ${u.sede}</td>
+                    <td><button class="btn btn-danger" onclick="excluir('${u.usuario_login}')"><i class="fas fa-trash"></i></button></td>
+                </tr>
+            `).join('');
         }
 
-        async function excluirUsuario(login) {
-            if(confirm(`Tem certeza que deseja excluir o usuário ${login}?`)) {
+        async function excluir(login) {
+            if(confirm("Excluir?")) {
                 await fetch(`/admin/usuarios/excluir/${login}`, { method: 'DELETE' });
                 listarUsuarios();
             }
@@ -148,22 +138,19 @@
             const b1 = document.getElementById('bodyP1'); const b2 = document.getElementById('bodyP2');
             b1.innerHTML = ''; b2.innerHTML = '';
             logs.forEach(l => {
-                const row = `<tr><td><span class="user-name">${l.nome}</span><span class="user-meta">${l.empresa} - ${l.sede}</span></td><td>${l.turno_registro}</td><td>${l.hora}</td></tr>`;
+                const row = `<tr><td><b>${l.nome}</b><br><small>${l.empresa}</small></td><td>${l.hora}</td></tr>`;
                 if(l.portaria === 'P1') b1.innerHTML += row; else b2.innerHTML += row;
             });
         }
 
         function exportar(fmt) {
-            const inicio = document.getElementById('rel_inicio').value;
-            const fim = document.getElementById('rel_fim').value;
-            const turno = document.getElementById('rel_turno').value;
-            if(!inicio || !fim) return alert("Selecione o período para exportar.");
-            window.open(`/admin/exportar/${fmt}?inicio=${inicio}&fim=${fim}&turno=${turno}`, '_blank');
+            const qs = `?inicio=${document.getElementById('rel_inicio').value}&fim=${document.getElementById('rel_fim').value}&turno=${document.getElementById('rel_turno').value}`;
+            window.open(`/admin/exportar/${fmt}${qs}`, '_blank');
         }
 
         listarUsuarios();
-        carregarMonitoramento();
         setInterval(carregarMonitoramento, 10000);
+        carregarMonitoramento();
     </script>
 </body>
 </html>
