@@ -12,13 +12,15 @@
         .main { margin-left: 250px; padding: 30px; width: calc(100% - 250px); box-sizing: border-box; }
         .card { background: white; border-radius: 8px; padding: 20px; margin-bottom: 25px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
         h3 { margin-top: 0; color: var(--primary); border-left: 4px solid var(--accent); padding-left: 10px; }
-        .grid-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 15px; }
+        .grid-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 15px; }
         .form-group { display: flex; flex-direction: column; }
         label { font-size: 0.85rem; font-weight: bold; margin-bottom: 5px; color: #555; }
         input, select { padding: 10px; border: 1px solid #ddd; border-radius: 4px; }
         .btn { padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; color: white; transition: 0.3s; }
         .btn-success { background: var(--success); }
         .btn-danger { background: var(--danger); padding: 5px 10px; }
+        .btn-pdf { background: #c0392b; }
+        .btn-excel { background: #217346; }
         .monitor-split { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
         table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 10px; }
         th { text-align: left; padding: 12px; background: #f8f9fa; border-bottom: 2px solid #eee; }
@@ -45,7 +47,28 @@
                 <div class="form-group"><label>Empresa</label><input type="text" id="empresa"></div>
                 <div class="form-group"><label>Filial/Sede</label><input type="text" id="sede"></div>
             </div>
-            <button onclick="salvarUsuario()" class="btn btn-success"><i class="fas fa-save"></i> Salvar</button>
+            <button onclick="salvarUsuario()" class="btn btn-success" style="margin-top:15px;"><i class="fas fa-save"></i> Salvar Usuário</button>
+        </div>
+
+        <div class="card">
+            <h3><i class="fas fa-file-export"></i> Relatórios do Monitoramento</h3>
+            <div class="grid-form">
+                <div class="form-group"><label>Início</label><input type="datetime-local" id="rel_inicio"></div>
+                <div class="form-group"><label>Fim</label><input type="datetime-local" id="rel_fim"></div>
+                <div class="form-group">
+                    <label>Turno</label>
+                    <select id="rel_turno">
+                        <option value="Todos">Todos</option>
+                        <option value="Manhã">Manhã</option>
+                        <option value="Tarde">Tarde</option>
+                        <option value="Noite">Noite</option>
+                    </select>
+                </div>
+                <div class="form-group" style="justify-content: flex-end; flex-direction: row; gap: 10px;">
+                    <button onclick="exportar('excel')" class="btn btn-excel">Excel</button>
+                    <button onclick="exportar('pdf')" class="btn btn-pdf">PDF</button>
+                </div>
+            </div>
         </div>
 
         <div class="card">
@@ -91,6 +114,7 @@
                 empresa: document.getElementById('empresa').value,
                 sede: document.getElementById('sede').value
             };
+            if(!data.usuario_login || !data.codigo_atual) return alert("Preencha os campos obrigatórios.");
             const res = await fetch('/admin/usuarios/salvar', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
             if(res.ok) { alert("Sucesso!"); listarUsuarios(); carregarMonitoramento(); }
         }
@@ -112,7 +136,7 @@
         }
 
         async function excluirUsuario(login) {
-            if(confirm(`Excluir o usuário ${login}?`)) {
+            if(confirm(`Tem certeza que deseja excluir o usuário ${login}?`)) {
                 await fetch(`/admin/usuarios/excluir/${login}`, { method: 'DELETE' });
                 listarUsuarios();
             }
@@ -127,6 +151,14 @@
                 const row = `<tr><td><span class="user-name">${l.nome}</span><span class="user-meta">${l.empresa} - ${l.sede}</span></td><td>${l.turno_registro}</td><td>${l.hora}</td></tr>`;
                 if(l.portaria === 'P1') b1.innerHTML += row; else b2.innerHTML += row;
             });
+        }
+
+        function exportar(fmt) {
+            const inicio = document.getElementById('rel_inicio').value;
+            const fim = document.getElementById('rel_fim').value;
+            const turno = document.getElementById('rel_turno').value;
+            if(!inicio || !fim) return alert("Selecione o período para exportar.");
+            window.open(`/admin/exportar/${fmt}?inicio=${inicio}&fim=${fim}&turno=${turno}`, '_blank');
         }
 
         listarUsuarios();
