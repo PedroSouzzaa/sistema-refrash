@@ -2,30 +2,66 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Acesso Restrito</title>
+    <title>Login | NBL LOG Admin</title>
+    <link rel="shortcut icon" href="/static/favicon.ico" type="image/x-icon">
     <style>
-        body { font-family: sans-serif; background: #1a252f; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .card { background: white; padding: 40px; border-radius: 12px; width: 300px; text-align: center; }
-        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
-        button { width: 100%; padding: 12px; background: #3498db; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        body { 
+            font-family: sans-serif; 
+            background: #002855; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            height: 100vh; 
+            margin: 0; 
+        }
+        .card { 
+            background: white; 
+            padding: 40px; 
+            border-radius: 15px; 
+            width: 320px; 
+            text-align: center; 
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+        }
+        .logo { width: 200px; margin-bottom: 20px; }
+        input { 
+            width: 100%; 
+            padding: 12px; 
+            margin: 10px 0; 
+            border: 1px solid #ddd; 
+            border-radius: 6px; 
+            box-sizing: border-box; 
+        }
+        button { 
+            width: 100%; 
+            padding: 12px; 
+            background: #f39200; 
+            color: white; 
+            border: none; 
+            border-radius: 6px; 
+            cursor: pointer; 
+            font-weight: bold; 
+            font-size: 16px;
+        }
+        h2 { color: #002855; font-size: 1.2rem; margin-bottom: 20px; }
     </style>
 </head>
 <body>
     <div class="card">
-        <h2>Painel Admin</h2>
+        <img src="/static/logo_nbl.png" alt="NBL LOG" class="logo">
+        <h2>Acesso Administrativo</h2>
         <input type="text" id="u" placeholder="Usuário">
         <input type="password" id="p" placeholder="Senha">
-        <button onclick="logar()">Entrar</button>
+        <button onclick="logar()">ENTRAR</button>
     </div>
     <script>
         async function logar() {
             const res = await fetch('/api/login', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ user: document.getElementById('u').value, password: document.getElementById('p').value })
+                body: JSON.stringify({user: document.getElementById('u').value, password: document.getElementById('p').value})
             });
-            if(res.ok) window.location.href = '/admin';
-            else alert("Acesso Negado");
+            if(res.ok) location.href = '/admin';
+            else alert("Credenciais incorretas");
         }
     </script>
 </body>
