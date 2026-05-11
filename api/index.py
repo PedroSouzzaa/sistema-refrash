@@ -22,7 +22,6 @@ def get_db_connection():
 
 def obter_dados_filtrados(filtros):
     conn = get_db_connection()
-    # Base da query SQL
     query = '''
         SELECT l.data_hora, u.nome || ' ' || u.sobrenome as nome, 
                u.empresa, u.sede, u.portaria, l.turno_registro, l.status 
@@ -48,14 +47,33 @@ def obter_dados_filtrados(filtros):
     conn.close()
     return df
 
+@app.route('/')
+def index(): return render_template('index.html')
+
+@app.route('/login')
+def login_page(): return render_template('login.html')
+
+@app.route('/admin')
+def admin_page():
+    if request.cookies.get('auth_admin') != ADMIN_PASS: return render_template('login.html')
+    return render_template('admin.html')
+
+@app.route('/api/login', methods=['POST'])
+def api_login():
+    data = request.json
+    if data.get('user', '').lower() == "admin" and data.get('password') == ADMIN_PASS:
+        resp = make_response(jsonify({"status": "sucesso"}))
+        resp.set_cookie('auth_admin', ADMIN_PASS, httponly=True, samesite='Lax')
+        return resp
+    return jsonify({"status": "erro"}), 401
+
 @app.route('/admin/exportar/<formato>')
 def exportar_relatorio(formato):
     if request.cookies.get('auth_admin') != ADMIN_PASS: return "Acesso negado", 403
     
-    # Captura os filtros da URL
     filtros = {
-        'inicio': request.args.get('inicio'), # Ex: 2026-05-01T08:00
-        'fim': request.args.get('fim'),       # Ex: 2026-05-11T18:00
+        'inicio': request.args.get('inicio'),
+        'fim': request.args.get('fim'),
         'turno': request.args.get('turno')
     }
     
@@ -77,10 +95,9 @@ def exportar_relatorio(formato):
         styles = getSampleStyleSheet()
         
         elements.append(Paragraph("Relatório Gerencial Refresh", styles['Title']))
-        elements.append(Paragraph(f"Filtro: {filtros['inicio']} até {filtros['fim']} | Turno: {filtros['turno']}", styles['Normal']))
+        elements.append(Paragraph(f"Período: {filtros['inicio']} até {filtros['fim']} | Turno: {filtros['turno']}", styles['Normal']))
         elements.append(Spacer(1, 12))
 
-        # Preparar dados para a tabela do PDF
         dados_tabela = [['Data', 'Colaborador', 'Empresa', 'Posto', 'Turno', 'Status']]
         for _, row in df.iterrows():
             data_str = row['data_hora'].strftime('%d/%m %H:%M') if hasattr(row['data_hora'], 'strftime') else str(row['data_hora'])
@@ -91,7 +108,7 @@ def exportar_relatorio(formato):
             ('BACKGROUND', (0,0), (-1,0), colors.cadetblue),
             ('TEXTCOLOR',(0,0),(-1,0),colors.whitesmoke),
             ('GRID', (0,0), (-1,-1), 0.5, colors.black),
-            ('FONTSIZE', (0,0), (-1,-1), 7)
+            ('FONTSIZE', (0,0), (-1,-1), 8)
         ]))
         elements.append(t)
         doc.build(elements)
@@ -101,4 +118,24 @@ def exportar_relatorio(formato):
         response.headers["Content-Disposition"] = "inline; filename=relatorio_refresh.pdf"
         return response
 
-# ... (Manter as outras rotas /admin/status_usuarios, /admin/usuarios, etc como na versão anterior)
+@app.route('/colaborador/validar', methods=['POST'])
+def validar():
+    data = request.json
+    conn = get_db_connection()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    cur.execute('SELECT codigo_atual FROM usuarios WHERE usuario_login = %s', (data['usuario'].lower(),))
+    row = cur.fetchone()
+    
+    if row and row['codigo_atual'] == data['codigo']:
+        cur.execute("INSERT INTO logs (colaborador, status, turno_registro) VALUES (%s, 'Verificado', %s)", 
+                    (data['usuario'].lower(), data['turno']))
+        conn.commit()
+        cur.close()
+        conn.close()
+        return jsonify({"status": "sucesso", "msg": "✅ Presença confirmada!"})
+    
+    cur.close()
+    conn.close()
+    return jsonify({"status": "erro", "msg": "❌ ID ou Código incorretos"}), 401
+
+# (Rotas adicionais de cadastro e status omitidas para brevidade, mas devem ser mantidas)
