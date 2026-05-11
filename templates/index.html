@@ -9,13 +9,11 @@
         .card { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 90%; max-width: 400px; text-align: center; }
         input, select { width: 100%; padding: 15px; margin: 10px 0; border: 2px solid #eee; border-radius: 8px; font-size: 16px; box-sizing: border-box; }
         button { width: 100%; padding: 15px; background: #007bff; color: white; border: none; border-radius: 8px; font-size: 18px; cursor: pointer; font-weight: bold; }
-        button:disabled { background: #ccc; }
     </style>
 </head>
 <body>
     <div class="card">
         <h1 style="color: #007bff;">Refresh</h1>
-        <p style="color: #666;">Valide sua presença selecionando o local e turno</p>
         
         <select id="portaria">
             <option value="" disabled selected>Onde você está?</option>
@@ -30,7 +28,7 @@
             <option value="Noite">Noite (22h às 07h)</option>
         </select>
 
-        <input type="text" id="user" placeholder="ID de Usuário (ex: jose.silva)" autocomplete="off">
+        <input type="text" id="user" placeholder="ID de Usuário" autocomplete="off">
         <input type="password" id="code" placeholder="Código Único" autocomplete="off">
         
         <button id="btnValidar" onclick="validar()">Confirmar Presença</button>
@@ -38,7 +36,6 @@
 
     <script>
         async function validar() {
-            const btn = document.getElementById('btnValidar');
             const payload = {
                 usuario: document.getElementById('user').value.trim(),
                 codigo: document.getElementById('code').value.trim(),
@@ -47,11 +44,10 @@
             };
 
             if(!payload.portaria || !payload.turno || !payload.usuario || !payload.codigo) {
-                alert("Por favor, preencha todos os campos.");
+                alert("Preencha todos os campos.");
                 return;
             }
 
-            btn.disabled = true;
             try {
                 const res = await fetch('/colaborador/validar', {
                     method: 'POST',
@@ -60,14 +56,8 @@
                 });
                 const data = await res.json();
                 alert(data.msg);
-                if(res.ok) {
-                    document.getElementById('code').value = '';
-                }
-            } catch (e) { 
-                alert("Erro de conexão com o servidor."); 
-            } finally {
-                btn.disabled = false;
-            }
+                if(res.ok) document.getElementById('code').value = '';
+            } catch (e) { alert("Erro de conexão."); }
         }
     </script>
 </body>
