@@ -6,7 +6,7 @@ from flask import Flask, render_template, request, jsonify, make_response
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
-# Bibliotecas para o PDF (ReportLab)
+# Bibliotecas para o PDF
 from reportlab.lib.pagesizes import A4
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from reportlab.lib import colors
@@ -18,35 +18,7 @@ ADMIN_PASS = os.environ.get('ADMIN_PASSWORD', 'admin123')
 def get_db_connection():
     return psycopg2.connect(os.environ.get('POSTGRES_URL'))
 
-# --- ROTAS DE EXPORTAÇÃO COM FILTROS ---
-
-def obter_dados_filtrados(filtros):
-    conn = get_db_connection()
-    query = '''
-        SELECT l.data_hora, u.nome || ' ' || u.sobrenome as nome, 
-               u.empresa, u.sede, u.portaria, l.turno_registro, l.status 
-        FROM logs l 
-        JOIN usuarios u ON l.colaborador = u.usuario_login 
-        WHERE 1=1
-    '''
-    params = []
-
-    # Filtro de Data e Hora
-    if filtros.get('inicio') and filtros.get('fim'):
-        query += " AND l.data_hora BETWEEN %s AND %s"
-        params.extend([filtros['inicio'], filtros['fim']])
-    
-    # Filtro de Turno
-    if filtros.get('turno') and filtros.get('turno') != 'Todos':
-        query += " AND l.turno_registro LIKE %s"
-        params.append(f"%{filtros['turno']}%")
-
-    query += " ORDER BY l.data_hora DESC"
-    
-    df = pd.read_sql(query, conn, params=params)
-    conn.close()
-    return df
-
+# --- ROTAS DE NAVEGAÇÃO ---
 @app.route('/')
 def index(): return render_template('index.html')
 
@@ -67,56 +39,82 @@ def api_login():
         return resp
     return jsonify({"status": "erro"}), 401
 
+# --- MONITORAMENTO E CADASTRO ---
+@app.route('/admin/status_realtime')
+def status_realtime():
+    conn = get_db_connection()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    cur.execute('''
+        SELECT u.nome || ' ' || u.sobrenome as nome, u.empresa, u.portaria, l.turno_registro, 
+               to_char(l.data_hora, 'HH24:MI:SS') as hora
+        FROM logs l
+        JOIN usuarios u ON l.colaborador = u.usuario_login
+        WHERE l.data_hora >= CURRENT_DATE
+        ORDER BY l.data_hora DESC
+    ''')
+    logs = cur.fetchall()
+    conn.close()
+    return jsonify(logs)
+
+@app.route('/admin/usuarios/salvar', methods=['POST'])
+def salvar_usuario():
+    if request.cookies.get('auth_admin') != ADMIN_PASS: return jsonify({"erro": "Não autorizado"}), 403
+    data = request.json
+    conn = get_db_connection()
+    cur = conn.cursor()
+    query = '''
+        INSERT INTO usuarios (nome, sobrenome, usuario_login, codigo_atual, empresa, sede, portaria)
+        VALUES (%s, %s, %s, %s, %s, %s, %s)
+        ON CONFLICT (usuario_login) DO UPDATE SET
+        nome = EXCLUDED.nome, sobrenome = EXCLUDED.sobrenome, codigo_atual = EXCLUDED.codigo_atual,
+        empresa = EXCLUDED.empresa, sede = EXCLUDED.sede, portaria = EXCLUDED.portaria
+    '''
+    cur.execute(query, (data['nome'], data['sobrenome'], data['usuario_login'], 
+                        data['codigo_atual'], data['empresa'], data['sede'], data['portaria']))
+    conn.commit()
+    cur.close(); conn.close()
+    return jsonify({"status": "sucesso"})
+
+# --- EXPORTAÇÃO DE RELATÓRIOS ---
 @app.route('/admin/exportar/<formato>')
 def exportar_relatorio(formato):
     if request.cookies.get('auth_admin') != ADMIN_PASS: return "Acesso negado", 403
+    filtros = {'inicio': request.args.get('inicio'), 'fim': request.args.get('fim'), 'turno': request.args.get('turno')}
     
-    filtros = {
-        'inicio': request.args.get('inicio'),
-        'fim': request.args.get('fim'),
-        'turno': request.args.get('turno')
-    }
+    conn = get_db_connection()
+    query = "SELECT l.data_hora, u.nome || ' ' || u.sobrenome as nome, u.empresa, u.portaria, l.turno_registro, l.status FROM logs l JOIN usuarios u ON l.colaborador = u.usuario_login WHERE 1=1"
+    params = []
+    if filtros['inicio'] and filtros['fim']:
+        query += " AND l.data_hora BETWEEN %s AND %s"
+        params.extend([filtros['inicio'], filtros['fim']])
+    if filtros['turno'] and filtros['turno'] != 'Todos':
+        query += " AND l.turno_registro LIKE %s"
+        params.append(f"%{filtros['turno']}%")
     
-    df = obter_dados_filtrados(filtros)
-    
+    df = pd.read_sql(query, conn, params=params)
+    conn.close()
+
     if formato == 'excel':
         output = io.BytesIO()
         with pd.ExcelWriter(output, engine='openpyxl') as writer:
-            df.to_excel(writer, index=False, sheet_name='Relatório Refresh')
-        response = make_response(output.getvalue())
-        response.headers["Content-Disposition"] = "attachment; filename=relatorio_refresh.xlsx"
-        response.headers["Content-type"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        return response
-
-    elif formato == 'pdf':
-        output = io.BytesIO()
-        doc = SimpleDocTemplate(output, pagesize=A4)
-        elements = []
-        styles = getSampleStyleSheet()
-        
-        elements.append(Paragraph("Relatório Gerencial Refresh", styles['Title']))
-        elements.append(Paragraph(f"Período: {filtros['inicio']} até {filtros['fim']} | Turno: {filtros['turno']}", styles['Normal']))
-        elements.append(Spacer(1, 12))
-
-        dados_tabela = [['Data', 'Colaborador', 'Empresa', 'Posto', 'Turno', 'Status']]
-        for _, row in df.iterrows():
-            data_str = row['data_hora'].strftime('%d/%m %H:%M') if hasattr(row['data_hora'], 'strftime') else str(row['data_hora'])
-            dados_tabela.append([data_str, row['nome'], row['empresa'], row['portaria'], row['turno_registro'], row['status']])
-
-        t = Table(dados_tabela, colWidths=[70, 120, 80, 40, 110, 80])
-        t.setStyle(TableStyle([
-            ('BACKGROUND', (0,0), (-1,0), colors.cadetblue),
-            ('TEXTCOLOR',(0,0),(-1,0),colors.whitesmoke),
-            ('GRID', (0,0), (-1,-1), 0.5, colors.black),
-            ('FONTSIZE', (0,0), (-1,-1), 8)
-        ]))
-        elements.append(t)
-        doc.build(elements)
-        
-        response = make_response(output.getvalue())
-        response.headers["Content-type"] = "application/pdf"
-        response.headers["Content-Disposition"] = "inline; filename=relatorio_refresh.pdf"
-        return response
+            df.to_excel(writer, index=False, sheet_name='Relatório')
+        resp = make_response(output.getvalue())
+        resp.headers["Content-type"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        resp.headers["Content-Disposition"] = "attachment; filename=relatorio.xlsx"
+        return resp
+    
+    # Lógica de PDF simplificada (ReportLab)
+    output = io.BytesIO()
+    doc = SimpleDocTemplate(output, pagesize=A4)
+    elements = [Paragraph("Relatório Refresh", getSampleStyleSheet()['Title']), Spacer(1, 12)]
+    dados = [df.columns.to_list()] + df.values.tolist()
+    t = Table(dados)
+    t.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,0),colors.grey),('GRID',(0,0),(-1,-1),0.5,colors.black)]))
+    elements.append(t)
+    doc.build(elements)
+    resp = make_response(output.getvalue())
+    resp.headers["Content-type"] = "application/pdf"
+    return resp
 
 @app.route('/colaborador/validar', methods=['POST'])
 def validar():
@@ -124,18 +122,9 @@ def validar():
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
     cur.execute('SELECT codigo_atual FROM usuarios WHERE usuario_login = %s', (data['usuario'].lower(),))
-    row = cur.fetchone()
-    
-    if row and row['codigo_atual'] == data['codigo']:
-        cur.execute("INSERT INTO logs (colaborador, status, turno_registro) VALUES (%s, 'Verificado', %s)", 
-                    (data['usuario'].lower(), data['turno']))
+    user = cur.fetchone()
+    if user and user['codigo_atual'] == data['codigo']:
+        cur.execute("INSERT INTO logs (colaborador, status, turno_registro) VALUES (%s, 'Verificado', %s)", (data['usuario'].lower(), data['turno']))
         conn.commit()
-        cur.close()
-        conn.close()
-        return jsonify({"status": "sucesso", "msg": "✅ Presença confirmada!"})
-    
-    cur.close()
-    conn.close()
-    return jsonify({"status": "erro", "msg": "❌ ID ou Código incorretos"}), 401
-
-# (Rotas adicionais de cadastro e status omitidas para brevidade, mas devem ser mantidas)
+        return jsonify({"status": "sucesso", "msg": "✅ Confirmado!"})
+    return jsonify({"status": "erro", "msg": "❌ Falha na validação"}), 401
