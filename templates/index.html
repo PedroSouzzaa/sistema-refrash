@@ -2,21 +2,89 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Check-in Refresh</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Check-in | NBL LOG</title>
+    <link rel="shortcut icon" href="/static/favicon.ico" type="image/x-icon">
     <style>
-        body { font-family: sans-serif; background: #f0f2f5; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .card { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 90%; max-width: 400px; text-align: center; }
-        input, select { width: 100%; padding: 15px; margin: 10px 0; border: 2px solid #eee; border-radius: 8px; font-size: 16px; box-sizing: border-box; }
-        button { width: 100%; padding: 15px; background: #007bff; color: white; border: none; border-radius: 8px; font-size: 18px; cursor: pointer; font-weight: bold; }
+        :root {
+            --nbl-blue: #002855;
+            --nbl-orange: #f39200;
+            --bg: #f4f7f9;
+        }
+
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background: var(--bg); 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            height: 100vh; 
+            margin: 0; 
+            overflow: hidden;
+        }
+
+        .card { 
+            background: white; 
+            padding: 40px; 
+            border-radius: 20px; 
+            box-shadow: 0 15px 35px rgba(0,40,85,0.15); 
+            width: 90%; 
+            max-width: 420px; 
+            text-align: center;
+            border-top: 8px solid var(--nbl-blue);
+        }
+
+        .logo-container { margin-bottom: 25px; }
+        .logo-container img { max-width: 220px; height: auto; }
+
+        h2 { color: var(--nbl-blue); margin-bottom: 25px; font-weight: 600; font-size: 1.5rem; }
+
+        input, select { 
+            width: 100%; 
+            padding: 15px; 
+            margin: 10px 0; 
+            border: 2px solid #e1e8ed; 
+            border-radius: 10px; 
+            font-size: 16px; 
+            box-sizing: border-box; 
+            transition: 0.3s;
+        }
+
+        input:focus, select:focus {
+            border-color: var(--nbl-orange);
+            outline: none;
+            box-shadow: 0 0 8px rgba(243, 146, 0, 0.2);
+        }
+
+        button { 
+            width: 100%; 
+            padding: 16px; 
+            background: var(--nbl-blue); 
+            color: white; 
+            border: none; 
+            border-radius: 10px; 
+            font-size: 18px; 
+            cursor: pointer; 
+            font-weight: bold; 
+            margin-top: 15px;
+            transition: 0.3s;
+        }
+
+        button:hover { background: #001d3d; transform: translateY(-2px); }
+        
+        .footer-nbl { margin-top: 25px; font-size: 11px; color: #95a5a6; text-transform: uppercase; letter-spacing: 1px; }
     </style>
 </head>
 <body>
     <div class="card">
-        <h1 style="color: #007bff;">Refresh</h1>
+        <div class="logo-container">
+            <img src="/static/logo_nbl.png" alt="NBL LOG">
+        </div>
+        
+        <h2>Registro de Presença</h2>
         
         <select id="portaria">
-            <option value="" disabled selected>Onde você está?</option>
+            <option value="" disabled selected>Selecione a Portaria</option>
             <option value="P1">Portaria 1 (P1)</option>
             <option value="P2">Portaria 2 (P2)</option>
         </select>
@@ -31,11 +99,14 @@
         <input type="text" id="user" placeholder="ID de Usuário" autocomplete="off">
         <input type="password" id="code" placeholder="Código Único" autocomplete="off">
         
-        <button id="btnValidar" onclick="validar()">Confirmar Presença</button>
+        <button id="btnValidar" onclick="validar()">CONFIRMAR ACESSO</button>
+
+        <div class="footer-nbl">© NBL LOG - Gestão de Operações</div>
     </div>
 
     <script>
         async function validar() {
+            const btn = document.getElementById('btnValidar');
             const payload = {
                 usuario: document.getElementById('user').value.trim(),
                 codigo: document.getElementById('code').value.trim(),
@@ -44,9 +115,12 @@
             };
 
             if(!payload.portaria || !payload.turno || !payload.usuario || !payload.codigo) {
-                alert("Preencha todos os campos.");
+                alert("Preencha todos os campos obrigatórios.");
                 return;
             }
+
+            btn.disabled = true;
+            btn.innerText = "VALIDANDO...";
 
             try {
                 const res = await fetch('/colaborador/validar', {
@@ -58,6 +132,9 @@
                 alert(data.msg);
                 if(res.ok) document.getElementById('code').value = '';
             } catch (e) { alert("Erro de conexão."); }
+            
+            btn.disabled = false;
+            btn.innerText = "CONFIRMAR ACESSO";
         }
     </script>
 </body>
