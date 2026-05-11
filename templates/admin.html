@@ -2,94 +2,200 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Refresh Admin - Gestão Central</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        :root { --primary: #2c3e50; --success: #27ae60; --danger: #e74c3c; --bg: #f4f7f6; }
+        :root { --primary: #2c3e50; --success: #27ae60; --danger: #e74c3c; --bg: #f4f7f6; --accent: #3498db; }
         body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; display: flex; }
-        .sidebar { width: 250px; background: var(--primary); color: white; height: 100vh; position: fixed; padding: 20px; }
-        .main { margin-left: 250px; padding: 30px; width: calc(100% - 250px); }
+        
+        /* Barra Lateral */
+        .sidebar { width: 250px; background: var(--primary); color: white; height: 100vh; position: fixed; padding: 20px; box-sizing: border-box; }
+        .sidebar h2 { font-size: 1.5rem; margin-bottom: 30px; border-bottom: 1px solid #3e4f5f; padding-bottom: 10px; }
+        
+        /* Área Principal */
+        .main { margin-left: 250px; padding: 30px; width: calc(100% - 250px); box-sizing: border-box; }
         .card { background: white; border-radius: 8px; padding: 20px; margin-bottom: 25px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        .grid-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; }
-        input, select { padding: 10px; border: 1px solid #ddd; border-radius: 4px; }
-        button { padding: 12px; border: none; border-radius: 4px; cursor: pointer; color: white; font-weight: bold; }
+        h3 { margin-top: 0; color: var(--primary); border-left: 4px solid var(--accent); padding-left: 10px; }
+
+        /* Formulários e Filtros */
+        .grid-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 15px; }
+        .form-group { display: flex; flex-direction: column; }
+        label { font-size: 0.85rem; font-weight: bold; margin-bottom: 5px; color: #555; }
+        input, select { padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; }
+        
+        /* Botões */
+        .btn { padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; color: white; transition: 0.3s; }
+        .btn-success { background: var(--success); }
+        .btn-pdf { background: var(--danger); }
+        .btn-excel { background: #217346; }
+        .btn:hover { opacity: 0.8; }
+
+        /* Grid de Monitoramento (Lado a Lado) */
         .monitor-split { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-        table { width: 100%; border-collapse: collapse; font-size: 13px; }
-        th, td { text-align: left; padding: 12px; border-bottom: 1px solid #eee; }
-        .badge { padding: 4px 8px; border-radius: 12px; font-size: 10px; font-weight: bold; }
+        .portaria-card { border-top: 4px solid var(--accent); }
+        .portaria-card.p2 { border-top-color: #f1c40f; }
+
+        /* Tabelas */
+        table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 10px; }
+        th { text-align: left; padding: 12px; background: #f8f9fa; border-bottom: 2px solid #eee; color: #666; }
+        td { padding: 12px; border-bottom: 1px solid #eee; vertical-align: top; }
+        
+        /* Estilização dos nomes e sub-infos */
+        .user-name { font-weight: bold; color: var(--primary); display: block; font-size: 14px; }
+        .user-meta { font-size: 11px; color: #7f8c8d; display: block; margin-top: 2px; }
+        .badge-turno { padding: 2px 6px; background: #e8f4fd; color: #2980b9; border-radius: 4px; font-weight: bold; font-size: 10px; }
     </style>
 </head>
 <body>
+
     <div class="sidebar">
         <h2>Refresh Admin</h2>
-        <nav><button onclick="location.href='/'" style="background:#34495e; width:100%"><i class="fas fa-sign-out-alt"></i> Sair</button></nav>
+        <nav>
+            <button onclick="location.href='/'" class="btn" style="background:#34495e; width:100%"><i class="fas fa-sign-out-alt"></i> Sair do Painel</button>
+        </nav>
     </div>
 
     <div class="main">
         <div class="card">
-            <h3><i class="fas fa-user-plus"></i> Cadastro de Colaborador</h3>
+            <h3><i class="fas fa-user-plus"></i> Novo Colaborador</h3>
             <div class="grid-form">
-                <div style="display:flex; flex-direction:column;"><label>Nome</label><input type="text" id="nome"></div>
-                <div style="display:flex; flex-direction:column;"><label>Sobrenome</label><input type="text" id="sobrenome"></div>
-                <div style="display:flex; flex-direction:column;"><label>ID Usuário</label><input type="text" id="usuario_login"></div>
-                <div style="display:flex; flex-direction:column;"><label>Código Único</label><input type="text" id="codigo_atual"></div>
-                <div style="display:flex; flex-direction:column;"><label>Empresa</label><input type="text" id="empresa"></div>
-                <div style="display:flex; flex-direction:column;"><label>Sede/Filial</label><input type="text" id="sede"></div>
+                <div class="form-group"><label>Nome</label><input type="text" id="nome"></div>
+                <div class="form-group"><label>Sobrenome</label><input type="text" id="sobrenome"></div>
+                <div class="form-group"><label>Usuário (Login)</label><input type="text" id="usuario_login"></div>
+                <div class="form-group"><label>Código de Acesso</label><input type="text" id="codigo_atual"></div>
+                <div class="form-group"><label>Empresa</label><input type="text" id="empresa"></div>
+                <div class="form-group"><label>Filial/Sede</label><input type="text" id="sede"></div>
             </div>
-            <button onclick="salvar()" style="background:var(--success); margin-top:20px; width:200px;">Salvar Usuário</button>
-        </div>
-
-        <div class="monitor-split">
-            <div class="card">
-                <h3><span style="color:#3498db">●</span> Portaria 1 (P1)</h3>
-                <table><thead><tr><th>Colaborador</th><th>Turno</th><th>Hora</th></tr></thead><tbody id="bodyP1"></tbody></table>
-            </div>
-            <div class="card">
-                <h3><span style="color:#f1c40f">●</span> Portaria 2 (P2)</h3>
-                <table><thead><tr><th>Colaborador</th><th>Turno</th><th>Hora</th></tr></thead><tbody id="bodyP2"></tbody></table>
-            </div>
+            <button onclick="salvarUsuario()" class="btn btn-success"><i class="fas fa-save"></i> Salvar Usuário</button>
         </div>
 
         <div class="card">
-            <h3><i class="fas fa-download"></i> Extração de Relatórios</h3>
+            <h3><i class="fas fa-file-export"></i> Relatórios e Exportação</h3>
             <div class="grid-form">
-                <input type="datetime-local" id="rel_inicio">
-                <input type="datetime-local" id="rel_fim">
-                <select id="rel_turno"><option value="Todos">Todos Turnos</option><option value="Manhã">Manhã</option><option value="Tarde">Tarde</option><option value="Noite">Noite</option></select>
-                <div style="display:flex; gap:10px;"><button onclick="exportar('excel')" style="background:#27ae60; flex:1">Excel</button><button onclick="exportar('pdf')" style="background:#c0392b; flex:1">PDF</button></div>
+                <div class="form-group"><label>De (Data/Hora)</label><input type="datetime-local" id="rel_inicio"></div>
+                <div class="form-group"><label>Até (Data/Hora)</label><input type="datetime-local" id="rel_fim"></div>
+                <div class="form-group">
+                    <label>Turno</label>
+                    <select id="rel_turno">
+                        <option value="Todos">Todos</option>
+                        <option value="Manhã">Manhã</option>
+                        <option value="Tarde">Tarde</option>
+                        <option value="Noite">Noite</option>
+                    </select>
+                </div>
+                <div class="form-group" style="justify-content: flex-end; flex-direction: row; gap: 10px;">
+                    <button onclick="exportar('excel')" class="btn btn-excel"><i class="fas fa-file-excel"></i> Excel</button>
+                    <button onclick="exportar('pdf')" class="btn btn-pdf"><i class="fas fa-file-pdf"></i> PDF</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="monitor-split">
+            <div class="card portaria-card">
+                <h3>🔵 Portaria 1 (P1)</h3>
+                <table id="tabelaP1">
+                    <thead>
+                        <tr>
+                            <th>Colaborador</th>
+                            <th>Turno</th>
+                            <th>Data/Hora</th>
+                        </tr>
+                    </thead>
+                    <tbody id="bodyP1"></tbody>
+                </table>
+            </div>
+
+            <div class="card portaria-card p2">
+                <h3>🟡 Portaria 2 (P2)</h3>
+                <table id="tabelaP2">
+                    <thead>
+                        <tr>
+                            <th>Colaborador</th>
+                            <th>Turno</th>
+                            <th>Data/Hora</th>
+                        </tr>
+                    </thead>
+                    <tbody id="bodyP2"></tbody>
+                </table>
             </div>
         </div>
     </div>
 
     <script>
-        async function salvar() {
+        // Função para cadastrar novo usuário
+        async function salvarUsuario() {
             const data = {
-                nome: document.getElementById('nome').value, sobrenome: document.getElementById('sobrenome').value,
-                usuario_login: document.getElementById('usuario_login').value.toLowerCase(), codigo_atual: document.getElementById('codigo_atual').value,
-                empresa: document.getElementById('empresa').value, sede: document.getElementById('sede').value
+                nome: document.getElementById('nome').value,
+                sobrenome: document.getElementById('sobrenome').value,
+                usuario_login: document.getElementById('usuario_login').value.toLowerCase(),
+                codigo_atual: document.getElementById('codigo_atual').value,
+                empresa: document.getElementById('empresa').value,
+                sede: document.getElementById('sede').value
             };
-            const res = await fetch('/admin/usuarios/salvar', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
-            if(res.ok) { alert("Usuário cadastrado!"); carregar(); }
-        }
+            
+            if(!data.usuario_login || !data.codigo_atual) return alert("Preencha os campos obrigatórios.");
 
-        async function carregar() {
-            const res = await fetch('/admin/status_realtime');
-            const logs = await res.json();
-            const b1 = document.getElementById('bodyP1'); const b2 = document.getElementById('bodyP2');
-            b1.innerHTML = ''; b2.innerHTML = '';
-
-            logs.forEach(l => {
-                const row = `<tr><td><b>${l.nome}</b><br><small>${l.empresa}</small></td><td>${l.turno_registro}</td><td>${l.hora}</td></tr>`;
-                if(l.portaria === 'P1') b1.innerHTML += row; else b2.innerHTML += row;
+            const res = await fetch('/admin/usuarios/salvar', { 
+                method: 'POST', 
+                headers: {'Content-Type': 'application/json'}, 
+                body: JSON.stringify(data) 
             });
+            
+            if(res.ok) {
+                alert("Colaborador salvo com sucesso!");
+                carregarMonitoramento();
+            }
         }
 
+        // Função para carregar os logs em tempo real
+        async function carregarMonitoramento() {
+            try {
+                const res = await fetch('/admin/status_realtime');
+                const logs = await res.json();
+                
+                const b1 = document.getElementById('bodyP1');
+                const b2 = document.getElementById('bodyP2');
+                b1.innerHTML = ''; b2.innerHTML = '';
+
+                logs.forEach(l => {
+                    const row = `
+                        <tr>
+                            <td>
+                                <span class="user-name">${l.nome}</span>
+                                <span class="user-meta">${l.empresa} - ${l.sede || 'Filial não inf.'}</span>
+                            </td>
+                            <td><span class="badge-turno">${l.turno_registro}</span></td>
+                            <td style="color:#2c3e50;">${l.hora}</td>
+                        </tr>
+                    `;
+                    
+                    if(l.portaria === 'P1') {
+                        b1.innerHTML += row;
+                    } else {
+                        b2.innerHTML += row;
+                    }
+                });
+            } catch (err) {
+                console.error("Erro ao carregar dados:", err);
+            }
+        }
+
+        // Função de exportação de relatórios
         function exportar(fmt) {
-            const qs = `?inicio=${document.getElementById('rel_inicio').value}&fim=${document.getElementById('rel_fim').value}&turno=${document.getElementById('rel_turno').value}`;
+            const inicio = document.getElementById('rel_inicio').value;
+            const fim = document.getElementById('rel_fim').value;
+            const turno = document.getElementById('rel_turno').value;
+            
+            if(!inicio || !fim) return alert("Selecione o período para exportar.");
+
+            const qs = `?inicio=${inicio}&fim=${fim}&turno=${turno}`;
             window.open(`/admin/exportar/${fmt}${qs}`, '_blank');
         }
 
-        setInterval(carregar, 5000); carregar();
+        // Atualização automática a cada 10 segundos
+        setInterval(carregarMonitoramento, 10000);
+        carregarMonitoramento();
     </script>
 </body>
 </html>
