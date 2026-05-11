@@ -50,7 +50,7 @@ def validar():
     user = cur.fetchone()
     
     if user and user['codigo_atual'] == data['codigo']:
-        # Registra o log. O campo 'portaria' deve existir na tabela 'logs'
+        # Salva o log com a portaria vinda do frontend
         cur.execute("""
             INSERT INTO logs (colaborador, status, turno_registro, portaria) 
             VALUES (%s, 'Verificado', %s, %s)
@@ -62,13 +62,12 @@ def validar():
     conn.close()
     return jsonify({"status": "erro", "msg": "❌ ID ou Código incorretos"}), 401
 
-# --- MONITORAMENTO ADMIN (CORRIGIDO) ---
+# --- MONITORAMENTO ADMIN ---
 @app.route('/admin/status_realtime')
 def status_realtime():
     try:
         conn = get_db_connection()
         cur = conn.cursor(cursor_factory=RealDictCursor)
-        # Busca a portaria da tabela de logs (l)
         cur.execute('''
             SELECT u.nome || ' ' || u.sobrenome as nome, u.empresa, l.portaria, l.turno_registro, 
                    to_char(l.data_hora, 'HH24:MI:SS') as hora
@@ -80,28 +79,8 @@ def status_realtime():
         logs = cur.fetchall()
         conn.close()
         return jsonify(logs)
-    except Exception as e:
-        print(f"Erro no monitoramento: {e}")
-        return jsonify([]), 500
-
-@app.route('/admin/usuarios/salvar', methods=['POST'])
-def salvar_usuario():
-    if request.cookies.get('auth_admin') != ADMIN_PASS: return jsonify({"erro": "Não autorizado"}), 403
-    data = request.json
-    conn = get_db_connection()
-    cur = conn.cursor()
-    query = '''
-        INSERT INTO usuarios (nome, sobrenome, usuario_login, codigo_atual, empresa, sede)
-        VALUES (%s, %s, %s, %s, %s, %s)
-        ON CONFLICT (usuario_login) DO UPDATE SET
-        nome = EXCLUDED.nome, sobrenome = EXCLUDED.sobrenome, 
-        codigo_atual = EXCLUDED.codigo_atual, empresa = EXCLUDED.empresa, sede = EXCLUDED.sede
-    '''
-    cur.execute(query, (data['nome'], data['sobrenome'], data['usuario_login'], 
-                        data['codigo_atual'], data['empresa'], data['sede']))
-    conn.commit()
-    cur.close(); conn.close()
-    return jsonify({"status": "sucesso"})
+    except:
+        return jsonify([])
 
 # --- EXPORTAÇÃO ---
 @app.route('/admin/exportar/<formato>')
@@ -112,12 +91,7 @@ def exportar_relatorio(formato):
     turno = request.args.get('turno')
     
     conn = get_db_connection()
-    # Query atualizada para pegar a portaria do log
-    query = """
-        SELECT l.data_hora as "Data/Hora", u.nome || ' ' || u.sobrenome as "Colaborador", 
-        u.empresa as "Empresa", l.portaria as "Portaria", l.turno_registro as "Turno"
-        FROM logs l JOIN usuarios u ON l.colaborador = u.usuario_login WHERE 1=1
-    """
+    query = "SELECT l.data_hora, u.nome || ' ' || u.sobrenome as nome, u.empresa, l.portaria, l.turno_registro FROM logs l JOIN usuarios u ON l.colaborador = u.usuario_login WHERE 1=1"
     params = []
     if inicio and fim:
         query += " AND l.data_hora BETWEEN %s AND %s"; params.extend([inicio, fim])
@@ -132,7 +106,7 @@ def exportar_relatorio(formato):
         with pd.ExcelWriter(output, engine='openpyxl') as writer:
             df.to_excel(writer, index=False)
         resp = make_response(output.getvalue())
-        resp.headers["Content-Disposition"] = "attachment; filename=relatorio_refresh.xlsx"
+        resp.headers["Content-Disposition"] = "attachment; filename=relatorio.xlsx"
         resp.headers["Content-type"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         return resp
     
@@ -142,7 +116,7 @@ def exportar_relatorio(formato):
     elements = [Paragraph("Relatório Refresh", styles['Title']), Spacer(1, 12)]
     dados = [df.columns.to_list()] + df.values.tolist()
     t = Table(dados)
-    t.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,0),colors.cadetblue), ('TEXTCOLOR',(0,0),(-1,0),colors.whitesmoke), ('GRID',(0,0),(-1,-1),0.5,colors.black)]))
+    t.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,0),colors.grey),('GRID',(0,0),(-1,-1),0.5,colors.black)]))
     elements.append(t)
     doc.build(elements)
     resp = make_response(output.getvalue())
