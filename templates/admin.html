@@ -2,50 +2,110 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin | NBL LOG</title>
     <link rel="shortcut icon" href="static/NBL_LOG_icone.jpg" type="image/jpeg">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        :root { --nbl-blue: #002855; --nbl-orange: #f39200; --bg: #f0f3f6; }
+        :root { 
+            --nbl-blue: #002855; 
+            --nbl-orange: #f39200; 
+            --bg: #f0f3f6; 
+            --success: #27ae60;
+            --gray: #95a5a6;
+        }
         body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; display: flex; }
+        
         .sidebar { width: 260px; background: var(--nbl-blue); color: white; height: 100vh; position: fixed; padding: 20px; box-sizing: border-box; }
         .sidebar-logo img { width: 100px; border-radius: 8px; margin-bottom: 20px; }
+        
         .main { margin-left: 260px; padding: 30px; width: calc(100% - 260px); }
-        .card { background: white; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
-        h3 { color: var(--nbl-blue); border-left: 4px solid var(--nbl-orange); padding-left: 10px; margin-top: 0; }
-        .grid-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
-        input { padding: 10px; border: 1px solid #ddd; border-radius: 4px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th { text-align: left; background: #f8f9fb; padding: 12px; font-size: 13px; color: var(--nbl-blue); }
-        td { padding: 12px; border-bottom: 1px solid #eee; font-size: 14px; }
-        .btn-danger { background: #e74c3c; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer; }
+        
+        .card { background: white; border-radius: 12px; padding: 20px; margin-bottom: 25px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+        h3 { color: var(--nbl-blue); border-left: 4px solid var(--nbl-orange); padding-left: 10px; margin-top: 0; text-transform: uppercase; font-size: 1.1rem; }
+        
+        .grid-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 15px; }
+        input { padding: 10px; border: 1px solid #ddd; border-radius: 6px; }
+        
+        .monitor-container { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; background: white; }
+        th { text-align: left; background: #f8f9fb; padding: 12px; font-size: 12px; color: var(--nbl-blue); border-bottom: 2px solid #eee; }
+        td { padding: 12px; border-bottom: 1px solid #eee; font-size: 13px; }
+        
+        .status-badge { padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; text-transform: uppercase; }
+        .verificado { background: #eafaf1; color: var(--success); border: 1px solid var(--success); }
+        .nao-verificado { background: #f4f6f7; color: var(--gray); border: 1px solid var(--gray); }
+        
+        .btn-orange { background: var(--nbl-orange); color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        .btn-danger { background: #e74c3c; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; }
     </style>
 </head>
 <body>
     <div class="sidebar">
         <div class="sidebar-logo"><img src="static/NBL_LOG_icone.jpg" alt="Logo"></div>
-        <button onclick="location.href='/'" style="width:100%; background:rgba(255,255,255,0.1); color:white; border:none; padding:10px; cursor:pointer;">Ir para Totem</button>
+        <button onclick="location.href='/'" style="width:100%; background:rgba(255,255,255,0.1); color:white; border:none; padding:12px; cursor:pointer; border-radius:6px;">
+            <i class="fas fa-desktop"></i> Ir para Totem
+        </button>
     </div>
+
     <div class="main">
         <div class="card">
-            <h3>Novo Cadastro</h3>
+            <h3>Novo Cadastro de Colaborador</h3>
             <div class="grid-form">
                 <input type="text" id="nome" placeholder="Nome">
                 <input type="text" id="sobrenome" placeholder="Sobrenome">
-                <input type="text" id="usuario_login" placeholder="Login">
-                <input type="text" id="codigo_atual" placeholder="Código">
+                <input type="text" id="usuario_login" placeholder="Login/Usuário">
+                <input type="text" id="codigo_atual" placeholder="Código Único">
                 <input type="text" id="empresa" placeholder="Empresa">
-                <input type="text" id="sede" placeholder="Filial">
+                <input type="text" id="sede" placeholder="Filial/Sede">
             </div>
-            <button onclick="salvarUsuario()" style="margin-top:15px; background:var(--nbl-orange); color:white; border:none; padding:10px 20px; border-radius:4px; cursor:pointer;">CADASTRAR</button>
+            <button onclick="salvarUsuario()" class="btn-orange">CADASTRAR</button>
         </div>
 
         <div class="card">
-            <h3>Colaboradores Cadastrados</h3>
+            <h3>Monitoramento de Acessos (Tempo Real)</h3>
+            <p style="font-size: 12px; color: #7f8c8d;">Atualização automática a cada 1 hora.</p>
+            
+            <div class="monitor-container">
+                <div>
+                    <h4 style="color: var(--nbl-orange);"><i class="fas fa-door-open"></i> Portaria P1</h4>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Colaborador</th>
+                                <th>Empresa/Filial</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="bodyP1">
+                            </tbody>
+                    </table>
+                </div>
+
+                <div>
+                    <h4 style="color: var(--nbl-orange);"><i class="fas fa-door-open"></i> Portaria P2</h4>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Colaborador</th>
+                                <th>Empresa/Filial</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="bodyP2">
+                            </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>Gestão de Usuários</h3>
             <table>
                 <thead>
                     <tr>
-                        <th>Nome</th>
+                        <th>Nome Completo</th>
                         <th>Login</th>
                         <th>Empresa</th>
                         <th>Ações</th>
@@ -57,6 +117,36 @@
     </div>
 
     <script>
+        // Função para salvar usuário
+        async function salvarUsuario() {
+            const data = {
+                nome: document.getElementById('nome').value,
+                sobrenome: document.getElementById('sobrenome').value,
+                usuario_login: document.getElementById('usuario_login').value.toLowerCase(),
+                codigo_atual: document.getElementById('codigo_atual').value,
+                empresa: document.getElementById('empresa').value,
+                sede: document.getElementById('sede').value
+            };
+            if(!data.usuario_login) return alert("Preencha o login.");
+            await fetch('/admin/usuarios/salvar', { 
+                method: 'POST', 
+                headers: {'Content-Type': 'application/json'}, 
+                body: JSON.stringify(data) 
+            });
+            alert("Salvo com sucesso!");
+            location.reload();
+        }
+
+        // Função para excluir
+        async function excluirUsuario(login) {
+            if(confirm(`Excluir permanentemente o usuário ${login}?`)) {
+                await fetch(`/admin/usuarios/excluir/${login}`, { method: 'DELETE' });
+                listarUsuarios();
+                carregarMonitoramento();
+            }
+        }
+
+        // Listar todos para a tabela de gestão
         async function listarUsuarios() {
             const res = await fetch('/admin/usuarios/listar');
             const dados = await res.json();
@@ -75,27 +165,66 @@
             `).join('');
         }
 
-        async function excluirUsuario(login) {
-            if(confirm(`Deseja excluir ${login}?`)) {
-                await fetch(`/admin/usuarios/excluir/${login}`, { method: 'DELETE' });
-                listarUsuarios();
+        // Monitoramento Tempo Real com Status Verificado/Não Verificado
+        async function carregarMonitoramento() {
+            try {
+                // Pegamos os logs recentes e a lista de usuários para comparar
+                const resLogs = await fetch('/admin/status_realtime');
+                const resUsers = await fetch('/admin/usuarios/listar');
+                
+                const logs = await resLogs.json();
+                const users = await resUsers.json();
+                
+                const b1 = document.getElementById('bodyP1');
+                const b2 = document.getElementById('bodyP2');
+                
+                b1.innerHTML = ''; 
+                b2.innerHTML = '';
+
+                // Criamos uma lista de quem já "bateu" o ponto nos logs recentes
+                const loginsVerificados = logs.map(l => l.usuario_login || l.colaborador);
+
+                users.forEach(u => {
+                    const fezCheckin = loginsVerificados.includes(u.usuario_login);
+                    const statusClass = fezCheckin ? 'verificado' : 'nao-verificado';
+                    const statusText = fezCheckin ? 'Verificado' : 'Não Verificado';
+                    
+                    const row = `
+                        <tr>
+                            <td>
+                                <b>${u.nome} ${u.sobrenome}</b><br>
+                                <small>Turno: ${u.turno || 'Não Inf.'}</small>
+                            </td>
+                            <td>${u.empresa}<br><small>${u.sede || '-'}</small></td>
+                            <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+                        </tr>
+                    `;
+
+                    // Aqui você pode definir a lógica de qual portaria o usuário pertence 
+                    // ou exibir em ambas se for um monitoramento global. 
+                    // Como o log do index.html envia a portaria, filtramos aqui:
+                    const logUser = logs.find(l => (l.usuario_login || l.colaborador) === u.usuario_login);
+                    
+                    if (logUser && logUser.portaria === 'P1') {
+                        b1.innerHTML += row;
+                    } else if (logUser && logUser.portaria === 'P2') {
+                        b2.innerHTML += row;
+                    } else {
+                        // Se não tem log, aparece como não verificado em ambas ou na padrão
+                        b1.innerHTML += row;
+                    }
+                });
+            } catch (e) {
+                console.error("Erro no monitoramento:", e);
             }
         }
 
-        async function salvarUsuario() {
-            const data = {
-                nome: document.getElementById('nome').value,
-                sobrenome: document.getElementById('sobrenome').value,
-                usuario_login: document.getElementById('usuario_login').value.toLowerCase(),
-                codigo_atual: document.getElementById('codigo_atual').value,
-                empresa: document.getElementById('empresa').value,
-                sede: document.getElementById('sede').value
-            };
-            await fetch('/admin/usuarios/salvar', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
-            listarUsuarios();
-        }
-
+        // Inicialização
         listarUsuarios();
+        carregarMonitoramento();
+
+        // Atualização de 1 em 1 hora (3600000 ms)
+        setInterval(carregarMonitoramento, 3600000);
     </script>
 </body>
 </html>
