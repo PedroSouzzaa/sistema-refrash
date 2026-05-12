@@ -1,45 +1,154 @@
 <!DOCTYPE html>
 <html lang="pt-br">
+
 <head>
     <meta charset="UTF-8">
     <title>Login | NBL LOG</title>
     <link rel="shortcut icon" href="/static/NBL_LOG_icone.jpg" type="image/jpeg">
     <style>
-        body { 
-            font-family: sans-serif; background: #002855; 
-            display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; 
+        :root {
+            --nbl-blue: #1C355E;
+            --nbl-red: #E31E24;
+            --bg: #1C355E;
+            --card-bg: white;
+            --text: #333;
+            --input-bg: white;
+            --input-border: #ddd;
         }
-        .card { 
-            background: white; padding: 40px; border-radius: 15px; 
-            width: 320px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+
+        .dark-mode {
+            --bg: #121212;
+            --card-bg: #1e1e1e;
+            --text: #f4f7f9;
+            --input-bg: #333;
+            --input-border: #444;
+            --nbl-blue: #4a7ab5;
         }
-        .logo { width: 120px; margin-bottom: 20px; border-radius: 10px; }
-        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
-        button { 
-            width: 100%; padding: 12px; background: #f39200; color: white; 
-            border: none; border-radius: 6px; cursor: pointer; font-weight: bold; 
+
+        body {
+            font-family: sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            transition: background 0.3s;
         }
-        h2 { color: #002855; font-size: 1.1rem; margin-bottom: 20px; text-transform: uppercase; }
+
+        .card {
+            background: var(--card-bg);
+            padding: 40px;
+            border-radius: 15px;
+            width: 320px;
+            text-align: center;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+            transition: background 0.3s;
+            border-top: 8px solid var(--nbl-blue);
+        }
+
+        .logo {
+            width: 120px;
+            margin-bottom: 20px;
+            border-radius: 10px;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            background: var(--input-bg);
+            color: var(--text);
+            border: 1px solid var(--input-border);
+            border-radius: 6px;
+            box-sizing: border-box;
+        }
+
+        button.main-btn {
+            width: 100%;
+            padding: 12px;
+            background: var(--nbl-red);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-top: 10px;
+            transition: background 0.3s;
+        }
+
+        button.main-btn:hover {
+            background: #c0191e;
+        }
+
+        h2 {
+            color: var(--nbl-blue);
+            font-size: 1.1rem;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+        }
+
+        .controls {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .icon-btn {
+            background: var(--nbl-blue);
+            border: none;
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .dark-mode .icon-btn {
+            background: #444;
+        }
     </style>
 </head>
+
 <body>
+    <div class="controls">
+        <button class="icon-btn" onclick="toggleFullScreen()" title="Tela Cheia">&#x26F6;</button>
+        <button class="icon-btn" onclick="toggleDarkMode()" title="Modo Escuro">&#x1F312;</button>
+    </div>
     <div class="card">
         <img src="/static/NBL_LOG_icone.jpg" alt="NBL LOG" class="logo">
         <h2>Acesso Admin</h2>
         <input type="text" id="u" placeholder="Usuário">
         <input type="password" id="p" placeholder="Senha">
-        <button onclick="logar()">ENTRAR</button>
+        <button class="main-btn" onclick="logar()">ENTRAR</button>
     </div>
     <script>
+        function toggleFullScreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen();
+            } else if (document.exitFullscreen) {
+                document.exitFullscreen();
+            }
+        }
+        function toggleDarkMode() {
+            document.body.classList.toggle('dark-mode');
+            localStorage.setItem('theme', document.body.classList.contains('dark-mode') ? 'dark' : 'light');
+        }
+        if (localStorage.getItem('theme') === 'dark') document.body.classList.add('dark-mode');
+
         async function logar() {
             const res = await fetch('/api/login', {
                 method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({user: document.getElementById('u').value, password: document.getElementById('p').value})
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user: document.getElementById('u').value, password: document.getElementById('p').value })
             });
-            if(res.ok) location.href = '/admin';
+            if (res.ok) location.href = '/admin';
             else alert("Erro no login");
         }
     </script>
 </body>
+
 </html>
