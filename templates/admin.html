@@ -14,250 +14,94 @@
             --bg: #f0f3f6;
             --card-bg: white;
             --text: #333;
-            --input-bg: white;
-            --input-border: #ddd;
             --success: #27ae60;
             --gray: #95a5a6;
             --table-header: #f8f9fb;
             --table-border: #eee;
+            --whatsapp: #25d366;
         }
 
         .dark-mode {
             --nbl-blue: #0b1526;
-            --nbl-red: #E31E24;
             --bg: #121212;
             --card-bg: #1e1e1e;
-            --text: #f4f7f9;
-            --input-bg: #333;
-            --input-border: #444;
-            --table-header: #2c2c2c;
-            --table-border: #444;
+            --text: #f0f3f6;
+            --table-header: #2d2d2d;
+            --table-border: #333;
         }
 
-        body {
-            font-family: 'Segoe UI', sans-serif;
-            background: var(--bg);
-            color: var(--text);
-            margin: 0;
-            display: flex;
-            transition: background 0.3s;
-        }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); margin: 0; display: flex; transition: 0.3s; }
+        .sidebar { width: 260px; background: var(--nbl-blue); color: white; height: 100vh; position: fixed; padding: 20px; box-sizing: border-box; }
+        .main { margin-left: 260px; padding: 30px; width: calc(100% - 260px); }
+        .card { background: var(--card-bg); border-radius: 12px; padding: 20px; margin-bottom: 25px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        
+        .grid-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 15px; }
+        input { padding: 10px; border: 1px solid var(--table-border); border-radius: 6px; background: var(--card-bg); color: var(--text); }
+        
+        .monitor-container { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th { text-align: left; background: var(--table-header); padding: 12px; font-size: 12px; }
+        td { padding: 12px; border-bottom: 1px solid var(--table-border); font-size: 13px; }
 
-        .sidebar {
-            width: 260px;
-            background: var(--nbl-blue);
-            color: white;
-            height: 100vh;
-            position: fixed;
-            padding: 20px;
-            box-sizing: border-box;
-            transition: background 0.3s;
-        }
+        .status-badge { padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; }
+        .verificado { background: rgba(39, 174, 96, 0.1); color: var(--success); border: 1px solid var(--success); }
+        .nao-verificado { background: rgba(149, 165, 166, 0.1); color: var(--gray); border: 1px solid var(--gray); }
 
-        .sidebar-logo img {
-            width: 100px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-        }
-
-        .main {
-            margin-left: 260px;
-            padding: 30px;
-            width: calc(100% - 260px);
-        }
-
-        .card {
-            background: var(--card-bg);
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 25px;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
-            transition: background 0.3s;
-        }
-
-        h3 {
-            color: var(--text);
-            border-left: 4px solid var(--nbl-red);
-            padding-left: 10px;
-            margin-top: 0;
-            text-transform: uppercase;
-            font-size: 1.1rem;
-        }
-
-        h4 {
-            color: var(--nbl-red);
-        }
-
-        .grid-form {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-            gap: 10px;
-            margin-bottom: 15px;
-        }
-
-        input {
-            padding: 10px;
-            border: 1px solid var(--input-border);
-            border-radius: 6px;
-            background: var(--input-bg);
-            color: var(--text);
-        }
-
-        .monitor-container {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 10px;
-            background: var(--card-bg);
-        }
-
-        th {
-            text-align: left;
-            background: var(--table-header);
-            padding: 12px;
-            font-size: 12px;
-            color: var(--text);
-            border-bottom: 2px solid var(--table-border);
-        }
-
-        td {
-            padding: 12px;
-            border-bottom: 1px solid var(--table-border);
-            font-size: 13px;
-            color: var(--text);
-        }
-
-        .status-badge {
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 11px;
-            font-weight: bold;
-            text-transform: uppercase;
-        }
-
-        .verificado {
-            background: rgba(39, 174, 96, 0.2);
-            color: var(--success);
-            border: 1px solid var(--success);
-        }
-
-        .nao-verificado {
-            background: rgba(149, 165, 166, 0.2);
-            color: var(--gray);
-            border: 1px solid var(--gray);
-        }
-
-        .btn-red {
-            background: var(--nbl-red);
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: bold;
-        }
-
-        .btn-danger {
-            background: #e74c3c;
-            color: white;
-            border: none;
-            padding: 6px 10px;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-
-        .controls {
-            position: absolute;
-            top: 15px;
-            right: 15px;
-            display: flex;
-            gap: 10px;
-        }
-
-        .icon-btn {
-            background: var(--nbl-blue);
-            border: none;
-            color: white;
-            padding: 10px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 16px;
-        }
-
-        .dark-mode .icon-btn {
-            background: #444;
-        }
+        .btn { padding: 10px 20px; border-radius: 6px; border: none; cursor: pointer; font-weight: bold; color: white; transition: 0.2s; }
+        .btn-red { background: var(--nbl-red); }
+        .btn-whatsapp { background: var(--whatsapp); margin-top: 15px; display: inline-flex; align-items: center; gap: 8px; }
+        .btn-whatsapp:hover { opacity: 0.9; transform: translateY(-2px); }
+        
+        h3 { color: var(--nbl-red); text-transform: uppercase; font-size: 1rem; margin-top: 0; }
     </style>
 </head>
 
 <body>
     <div class="sidebar">
-        <div class="sidebar-logo"><img src="static/NBL_LOG_icone.jpg" alt="Logo"></div>
-        <button onclick="location.href='/'"
-            style="width:100%; background:rgba(255,255,255,0.1); color:white; border:none; padding:12px; cursor:pointer; border-radius:6px; margin-bottom: 10px;">
+        <h2>NBL LOG Admin</h2>
+        <button onclick="document.body.classList.toggle('dark-mode')" class="btn" style="background: rgba(255,255,255,0.1); width: 100%; margin-bottom: 10px;">
+            <i class="fas fa-moon"></i> Alternar Tema
+        </button>
+        <button onclick="location.href='/'" class="btn" style="background: rgba(255,255,255,0.1); width: 100%;">
             <i class="fas fa-desktop"></i> Ir para Totem
-        </button>
-        <button onclick="toggleFullScreen()"
-            style="width:100%; background:rgba(255,255,255,0.1); color:white; border:none; padding:12px; cursor:pointer; border-radius:6px; margin-bottom: 10px;">
-            <i class="fas fa-expand"></i> Tela Cheia
-        </button>
-        <button onclick="toggleDarkMode()"
-            style="width:100%; background:rgba(255,255,255,0.1); color:white; border:none; padding:12px; cursor:pointer; border-radius:6px;">
-            <i class="fas fa-moon"></i> Modo Escuro
         </button>
     </div>
 
     <div class="main">
         <div class="card">
-            <h3>Novo Cadastro de Colaborador</h3>
+            <h3>Novo Cadastro</h3>
             <div class="grid-form">
                 <input type="text" id="nome" placeholder="Nome">
                 <input type="text" id="sobrenome" placeholder="Sobrenome">
-                <input type="text" id="usuario_login" placeholder="Login/Usuário">
-                <input type="text" id="codigo_atual" placeholder="Código Único">
+                <input type="text" id="usuario_login" placeholder="Login">
+                <input type="text" id="codigo_atual" placeholder="Código">
                 <input type="text" id="empresa" placeholder="Empresa">
-                <input type="text" id="sede" placeholder="Filial/Sede">
+                <input type="text" id="sede" placeholder="Filial">
             </div>
-            <button onclick="salvarUsuario()" class="btn-red">CADASTRAR</button>
+            <button onclick="salvarUsuario()" class="btn btn-red">CADASTRAR</button>
         </div>
 
         <div class="card">
-            <h3>Monitoramento de Acessos (Tempo Real)</h3>
-            <p style="font-size: 12px; color: #7f8c8d;">Atualização automática a cada 1 hora.</p>
-
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h3>Monitoramento de Acessos</h3>
+                <button onclick="enviarRelatorioWhatsapp()" class="btn btn-whatsapp">
+                    <i class="fab fa-whatsapp"></i> ENVIAR RELATÓRIO
+                </button>
+            </div>
+            
             <div class="monitor-container">
                 <div>
-                    <h4><i class="fas fa-door-open"></i> Portaria P1</h4>
+                    <h4>Portaria P1</h4>
                     <table>
-                        <thead>
-                            <tr>
-                                <th>Colaborador</th>
-                                <th>Empresa/Filial</th>
-                                <th>Status</th>
-                            </tr>
-                        </thead>
-                        <tbody id="bodyP1">
-                        </tbody>
+                        <thead><tr><th>Colaborador</th><th>Status</th></tr></thead>
+                        <tbody id="bodyP1"></tbody>
                     </table>
                 </div>
-
                 <div>
-                    <h4><i class="fas fa-door-open"></i> Portaria P2</h4>
+                    <h4>Portaria P2</h4>
                     <table>
-                        <thead>
-                            <tr>
-                                <th>Colaborador</th>
-                                <th>Empresa/Filial</th>
-                                <th>Status</th>
-                            </tr>
-                        </thead>
-                        <tbody id="bodyP2">
-                        </tbody>
+                        <thead><tr><th>Colaborador</th><th>Status</th></tr></thead>
+                        <tbody id="bodyP2"></tbody>
                     </table>
                 </div>
             </div>
@@ -266,33 +110,13 @@
         <div class="card">
             <h3>Gestão de Usuários</h3>
             <table>
-                <thead>
-                    <tr>
-                        <th>Nome Completo</th>
-                        <th>Login</th>
-                        <th>Empresa</th>
-                        <th>Ações</th>
-                    </tr>
-                </thead>
+                <thead><tr><th>Nome</th><th>Login</th><th>Empresa</th><th>Ações</th></tr></thead>
                 <tbody id="listaUsuarios"></tbody>
             </table>
         </div>
     </div>
 
     <script>
-        function toggleFullScreen() {
-            if (!document.fullscreenElement) {
-                document.documentElement.requestFullscreen();
-            } else if (document.exitFullscreen) {
-                document.exitFullscreen();
-            }
-        }
-        function toggleDarkMode() {
-            document.body.classList.toggle('dark-mode');
-            localStorage.setItem('theme', document.body.classList.contains('dark-mode') ? 'dark' : 'light');
-        }
-        if (localStorage.getItem('theme') === 'dark') document.body.classList.add('dark-mode');
-
         async function salvarUsuario() {
             const data = {
                 nome: document.getElementById('nome').value,
@@ -302,94 +126,93 @@
                 empresa: document.getElementById('empresa').value,
                 sede: document.getElementById('sede').value
             };
-            if (!data.usuario_login) return alert("Preencha o login.");
-            await fetch('/admin/usuarios/salvar', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
-            });
-            alert("Salvo com sucesso!");
+            await fetch('/admin/usuarios/salvar', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
             location.reload();
-        }
-
-        async function excluirUsuario(login) {
-            if (confirm(`Excluir permanentemente o usuário ${login}?`)) {
-                await fetch(`/admin/usuarios/excluir/${login}`, { method: 'DELETE' });
-                listarUsuarios();
-                carregarMonitoramento();
-            }
         }
 
         async function listarUsuarios() {
             const res = await fetch('/admin/usuarios/listar');
             const dados = await res.json();
-            const lista = document.getElementById('listaUsuarios');
-            lista.innerHTML = dados.map(u => `
+            document.getElementById('listaUsuarios').innerHTML = dados.map(u => `
                 <tr>
                     <td>${u.nome} ${u.sobrenome}</td>
                     <td>${u.usuario_login}</td>
                     <td>${u.empresa}</td>
-                    <td>
-                        <button class="btn-danger" onclick="excluirUsuario('${u.usuario_login}')">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </td>
+                    <td><button onclick="excluir('${u.usuario_login}')" class="btn btn-red" style="padding: 5px 10px;"><i class="fas fa-trash"></i></button></td>
                 </tr>
             `).join('');
+            return dados;
+        }
+
+        async function excluir(login) {
+            if(confirm("Excluir usuário?")) {
+                await fetch(`/admin/usuarios/excluir/${login}`, { method: 'DELETE' });
+                listarUsuarios();
+            }
         }
 
         async function carregarMonitoramento() {
             try {
-                const resLogs = await fetch('/admin/status_realtime');
-                const resUsers = await fetch('/admin/usuarios/listar');
-
+                const [resLogs, resUsers] = await Promise.all([
+                    fetch('/admin/status_realtime'),
+                    fetch('/admin/usuarios/listar')
+                ]);
+                
                 const logs = await resLogs.json();
                 const users = await resUsers.json();
-
                 const b1 = document.getElementById('bodyP1');
                 const b2 = document.getElementById('bodyP2');
-
-                b1.innerHTML = '';
-                b2.innerHTML = '';
-
-                const loginsVerificados = logs.map(l => l.usuario_login || l.colaborador);
+                
+                b1.innerHTML = ''; b2.innerHTML = '';
+                const verificados = logs.map(l => l.usuario_login || l.colaborador);
 
                 users.forEach(u => {
-                    const fezCheckin = loginsVerificados.includes(u.usuario_login);
-                    const statusClass = fezCheckin ? 'verificado' : 'nao-verificado';
-                    const statusText = fezCheckin ? 'Verificado' : 'Não Verificado';
-
+                    const fezCheckin = verificados.includes(u.usuario_login);
+                    const logInfo = logs.find(l => (l.usuario_login || l.colaborador) === u.usuario_login);
+                    
                     const row = `
                         <tr>
-                            <td>
-                                <b>${u.nome} ${u.sobrenome}</b><br>
-                                <small>Turno: ${u.turno || 'Não Inf.'}</small>
-                            </td>
-                            <td>${u.empresa}<br><small>${u.sede || '-'}</small></td>
-                            <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+                            <td><b>${u.nome}</b><br><small>${u.empresa}</small></td>
+                            <td><span class="status-badge ${fezCheckin ? 'verificado' : 'nao-verificado'}">${fezCheckin ? 'VERIFICADO' : 'PENDENTE'}</span></td>
                         </tr>
                     `;
 
-                    const logUser = logs.find(l => (l.usuario_login || l.colaborador) === u.usuario_login);
-
-                    if (logUser && logUser.portaria === 'P1') {
-                        b1.innerHTML += row;
-                    } else if (logUser && logUser.portaria === 'P2') {
-                        b2.innerHTML += row;
-                    } else {
-                        b1.innerHTML += row;
-                    }
+                    if (logInfo?.portaria === 'P2') b2.innerHTML += row;
+                    else b1.innerHTML += row;
                 });
-            } catch (e) {
-                console.error(e);
-            }
+            } catch (e) { console.error(e); }
+        }
+
+        // --- NOVA FUNÇÃO WHATSAPP ---
+        function enviarRelatorioWhatsapp() {
+            const fone = "55919XXXXXXXX"; // <-- COLOQUE O SEU NÚMERO AQUI
+            let msg = "*📊 RELATÓRIO DE ACESSOS - NBL LOG*\n";
+            msg += "Data: " + new Date().toLocaleDateString() + "\n";
+            msg += "------------------------------------------\n\n";
+
+            msg += "*🚪 PORTARIA P1*\n";
+            document.querySelectorAll('#bodyP1 tr').forEach(tr => {
+                const nome = tr.querySelector('b').innerText;
+                const status = tr.querySelector('.status-badge').innerText;
+                const icon = status === 'VERIFICADO' ? '✅' : '❌';
+                msg += `${icon} ${nome}: ${status}\n`;
+            });
+
+            msg += "\n*🚪 PORTARIA P2*\n";
+            document.querySelectorAll('#bodyP2 tr').forEach(tr => {
+                const nome = tr.querySelector('b').innerText;
+                const status = tr.querySelector('.status-badge').innerText;
+                const icon = status === 'VERIFICADO' ? '✅' : '❌';
+                msg += `${icon} ${nome}: ${status}\n`;
+            });
+
+            const url = `https://api.whatsapp.com/send?phone=${fone}&text=${encodeURIComponent(msg)}`;
+            window.open(url, '_blank');
         }
 
         listarUsuarios();
         carregarMonitoramento();
-
-        setInterval(carregarMonitoramento, 3600000);
+        setInterval(carregarMonitoramento, 30000); // Atualiza a cada 30 segundos
     </script>
 </body>
-
 </html>
