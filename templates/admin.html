@@ -6,47 +6,98 @@
     <title>Admin | NBL LOG</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        :root { --blue: #002855; --red: #E31E24; --bg: #f0f3f6; --success: #27ae60; }
+        :root { --blue: #002855; --red: #E31E24; --bg: #f0f3f6; --success: #27ae60; --orange: #f39200; }
         body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; display: flex; }
+        
         .sidebar { width: 260px; background: var(--blue); color: white; height: 100vh; position: fixed; padding: 20px; box-sizing: border-box; }
         .main { margin-left: 260px; padding: 30px; width: calc(100% - 260px); }
+        
         .card { background: white; border-radius: 12px; padding: 20px; margin-bottom: 25px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        
+        /* Estilo do Formulário de Cadastro */
+        .grid-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .form-group { display: flex; flex-direction: column; }
+        .form-group label { font-size: 12px; font-weight: bold; margin-bottom: 5px; color: var(--blue); }
+        .form-group input { padding: 10px; border: 1px solid #ddd; border-radius: 6px; outline: none; }
+        .form-group input:focus { border-color: var(--orange); }
+        
+        .btn-save { background: var(--orange); color: white; border: none; padding: 12px 25px; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.3s; }
+        .btn-save:hover { background: #d68100; }
+
         .monitor-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th { text-align: left; background: #f8f9fb; padding: 12px; font-size: 11px; color: var(--blue); }
+        th { text-align: left; background: #f8f9fb; padding: 12px; font-size: 11px; color: var(--blue); border-bottom: 2px solid #eee; }
         td { padding: 12px; border-bottom: 1px solid #eee; font-size: 12px; }
+        
         .status-ok { color: var(--success); font-weight: bold; font-size: 10px; }
         .btn-whatsapp { background: #25d366; color: white; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; font-weight: bold; display: flex; align-items: center; gap: 8px; }
+        
+        h3 { margin-top: 0; text-transform: uppercase; font-size: 16px; border-left: 4px solid var(--orange); padding-left: 10px; }
     </style>
 </head>
 <body>
     <div class="sidebar">
-        <h2>NBL LOG</h2>
-        <p>Painel de Controle</p>
-        <hr style="opacity: 0.1;">
-        <button onclick="location.href='/'" style="width:100%; padding:10px; background:rgba(255,255,255,0.1); border:none; color:white; cursor:pointer;">Ir para Totem</button>
+        <h2 style="color: var(--orange);">NBL LOG</h2>
+        <p>Painel Administrativo</p>
+        <hr style="opacity: 0.1; margin: 20px 0;">
+        <button onclick="location.href='/'" style="width:100%; padding:12px; background:rgba(255,255,255,0.1); border:none; color:white; cursor:pointer; border-radius: 6px;">
+            <i class="fas fa-desktop"></i> Ir para Totem
+        </button>
     </div>
 
     <div class="main">
         <div class="card">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <h3 style="color: var(--red);">MONITORAMENTO EM TEMPO REAL (BATIDAS DO INDEX)</h3>
+            <h3>Cadastrar Novo Colaborador</h3>
+            <div class="grid-form">
+                <div class="form-group">
+                    <label>Nome</label>
+                    <input type="text" id="cad_nome" placeholder="Ex: João">
+                </div>
+                <div class="form-group">
+                    <label>Sobrenome</label>
+                    <input type="text" id="cad_sobrenome" placeholder="Ex: Silva">
+                </div>
+                <div class="form-group">
+                    <label>ID de Usuário (Login)</label>
+                    <input type="text" id="cad_usuario" placeholder="Ex: joao.silva">
+                </div>
+                <div class="form-group">
+                    <label>Código Único (Senha Totem)</label>
+                    <input type="password" id="cad_codigo" placeholder="Ex: 1234">
+                </div>
+                <div class="form-group">
+                    <label>Empresa</label>
+                    <input type="text" id="cad_empresa" placeholder="Ex: NBL LOG">
+                </div>
+                <div class="form-group">
+                    <label>Sede / Filial</label>
+                    <input type="text" id="cad_sede" placeholder="Ex: Matriz Pará">
+                </div>
+            </div>
+            <button onclick="salvarUsuario()" class="btn-save">
+                <i class="fas fa-user-plus"></i> SALVAR COLABORADOR
+            </button>
+        </div>
+
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h3 style="border-color: var(--red);">Monitoramento de Batidas (Real)</h3>
                 <button onclick="enviarWhatsapp()" class="btn-whatsapp">
-                    <i class="fab fa-whatsapp"></i> RELATÓRIO DO TURNO
+                    <i class="fab fa-whatsapp"></i> ENVIAR RELATÓRIO DO TURNO
                 </button>
             </div>
             
             <div class="monitor-grid">
                 <div>
                     <h4>PORTARIA P1</h4>
-                    <table id="tableP1">
+                    <table>
                         <thead><tr><th>Colaborador / Empresa</th><th>Data/Hora</th></tr></thead>
                         <tbody id="bodyP1"></tbody>
                     </table>
                 </div>
                 <div>
                     <h4>PORTARIA P2</h4>
-                    <table id="tableP2">
+                    <table>
                         <thead><tr><th>Colaborador / Empresa</th><th>Data/Hora</th></tr></thead>
                         <tbody id="bodyP2"></tbody>
                     </table>
@@ -55,23 +106,58 @@
         </div>
 
         <div class="card">
-            <h3 style="color: var(--blue);">EXPORTAR RELATÓRIOS OFICIAIS</h3>
-            <div style="display: flex; gap: 10px;">
-                <input type="date" id="rel_inicio">
-                <input type="date" id="rel_fim">
-                <select id="rel_turno">
+            <h3 style="border-color: var(--blue);">Relatórios Oficiais (PDF/Excel)</h3>
+            <div style="display: flex; gap: 10px; margin-top: 15px;">
+                <input type="date" id="rel_inicio" style="padding: 10px; border-radius: 6px; border: 1px solid #ddd;">
+                <input type="date" id="rel_fim" style="padding: 10px; border-radius: 6px; border: 1px solid #ddd;">
+                <select id="rel_turno" style="padding: 10px; border-radius: 6px; border: 1px solid #ddd;">
                     <option value="Todos">Todos os Turnos</option>
                     <option value="Manhã">Manhã</option>
                     <option value="Tarde">Tarde</option>
                     <option value="Noite">Noite</option>
                 </select>
-                <button onclick="exportar('pdf')">Gerar PDF</button>
-                <button onclick="exportar('excel')">Gerar Excel</button>
+                <button onclick="exportar('pdf')" style="padding: 10px; cursor: pointer;">PDF</button>
+                <button onclick="exportar('excel')" style="padding: 10px; cursor: pointer;">Excel</button>
             </div>
         </div>
     </div>
 
     <script>
+        // Função para cadastrar novo usuário
+        async function salvarUsuario() {
+            const data = {
+                nome: document.getElementById('cad_nome').value.trim(),
+                sobrenome: document.getElementById('cad_sobrenome').value.trim(),
+                usuario_login: document.getElementById('cad_usuario').value.trim().toLowerCase(),
+                codigo_atual: document.getElementById('cad_codigo').value.trim(),
+                empresa: document.getElementById('cad_empresa').value.trim(),
+                sede: document.getElementById('cad_sede').value.trim()
+            };
+
+            if(!data.usuario_login || !data.codigo_atual || !data.nome) {
+                alert("Por favor, preencha Nome, ID e Código Único.");
+                return;
+            }
+
+            try {
+                const res = await fetch('/admin/usuarios/salvar', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(data)
+                });
+
+                if(res.ok) {
+                    alert("Colaborador cadastrado com sucesso!");
+                    // Limpa os campos
+                    document.querySelectorAll('.grid-form input').forEach(i => i.value = '');
+                } else {
+                    alert("Erro ao salvar usuário.");
+                }
+            } catch (e) {
+                alert("Erro de conexão.");
+            }
+        }
+
         async function carregarMonitoramento() {
             try {
                 const res = await fetch('/admin/status_realtime');
@@ -90,33 +176,31 @@
                             <td>
                                 <span class="status-ok">✅ VERIFICADO</span><br>
                                 <small>${l.data} ${l.hora}</small><br>
-                                <small style="color:var(--red)">Turno: ${l.turno_registro}</small>
+                                <small style="color:var(--red)">${l.turno_registro}</small>
                             </td>
-                        </tr>
-                    `;
+                        </tr>`;
                     if(l.portaria === 'P1') b1.innerHTML += tr;
                     else b2.innerHTML += tr;
                 });
-            } catch (e) { console.error("Erro:", e); }
+            } catch (e) { console.error(e); }
         }
 
         function enviarWhatsapp() {
-            const numero = "55919XXXXXXXX"; // Configure seu número aqui
-            let msg = "*📋 RELATÓRIO DE BATIDAS - NBL LOG*\n";
-            msg += "*Gerado em:* " + new Date().toLocaleString() + "\n\n";
-
+            const numero = "55919XXXXXXXX"; // Configure seu número
+            let msg = "*📋 RELATÓRIO DE BATIDAS - NBL LOG*\n\n";
+            
             msg += "*PORTARIA P1*\n";
             document.querySelectorAll('#bodyP1 tr').forEach(row => {
                 const nome = row.querySelector('b').innerText;
                 const info = row.querySelectorAll('small')[1].innerText;
-                msg += `✅ ${nome} - ${info}\n`;
+                msg += `✅ ${nome} (${info})\n`;
             });
 
             msg += "\n*PORTARIA P2*\n";
             document.querySelectorAll('#bodyP2 tr').forEach(row => {
                 const nome = row.querySelector('b').innerText;
                 const info = row.querySelectorAll('small')[1].innerText;
-                msg += `✅ ${nome} - ${info}\n`;
+                msg += `✅ ${nome} (${info})\n`;
             });
 
             window.open(`https://api.whatsapp.com/send?phone=${numero}&text=${encodeURIComponent(msg)}`, '_blank');
@@ -130,9 +214,8 @@
             window.open(`/admin/exportar/${fmt}?inicio=${ini}&fim=${fim}&turno=${t}`, '_blank');
         }
 
-        // Atualiza a cada 1 hora (3600000ms)
         carregarMonitoramento();
-        setInterval(carregarMonitoramento, 3600000);
+        setInterval(carregarMonitoramento, 3600000); // 1 em 1 hora
     </script>
 </body>
 </html>
