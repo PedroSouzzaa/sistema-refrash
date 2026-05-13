@@ -1,106 +1,53 @@
 <!DOCTYPE html>
 <html lang="pt-br">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin | NBL LOG</title>
-    <link rel="shortcut icon" href="static/NBL_LOG_icone.jpg" type="image/jpeg">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        :root {
-            --nbl-blue: #1C355E;
-            --nbl-red: #E31E24;
-            --bg: #f0f3f6;
-            --card-bg: white;
-            --text: #333;
-            --success: #27ae60;
-            --gray: #95a5a6;
-            --table-header: #f8f9fb;
-            --table-border: #eee;
-            --whatsapp: #25d366;
-        }
-
-        .dark-mode {
-            --nbl-blue: #0b1526;
-            --bg: #121212;
-            --card-bg: #1e1e1e;
-            --text: #f0f3f6;
-            --table-header: #2d2d2d;
-            --table-border: #333;
-        }
-
-        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); margin: 0; display: flex; transition: 0.3s; }
-        .sidebar { width: 260px; background: var(--nbl-blue); color: white; height: 100vh; position: fixed; padding: 20px; box-sizing: border-box; }
+        :root { --blue: #002855; --red: #E31E24; --bg: #f0f3f6; --success: #27ae60; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; display: flex; }
+        .sidebar { width: 260px; background: var(--blue); color: white; height: 100vh; position: fixed; padding: 20px; box-sizing: border-box; }
         .main { margin-left: 260px; padding: 30px; width: calc(100% - 260px); }
-        .card { background: var(--card-bg); border-radius: 12px; padding: 20px; margin-bottom: 25px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-        
-        .grid-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 15px; }
-        input { padding: 10px; border: 1px solid var(--table-border); border-radius: 6px; background: var(--card-bg); color: var(--text); }
-        
-        .monitor-container { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .card { background: white; border-radius: 12px; padding: 20px; margin-bottom: 25px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .monitor-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th { text-align: left; background: var(--table-header); padding: 12px; font-size: 12px; }
-        td { padding: 12px; border-bottom: 1px solid var(--table-border); font-size: 13px; }
-
-        .status-badge { padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; }
-        .verificado { background: rgba(39, 174, 96, 0.1); color: var(--success); border: 1px solid var(--success); }
-        .nao-verificado { background: rgba(149, 165, 166, 0.1); color: var(--gray); border: 1px solid var(--gray); }
-
-        .btn { padding: 10px 20px; border-radius: 6px; border: none; cursor: pointer; font-weight: bold; color: white; transition: 0.2s; }
-        .btn-red { background: var(--nbl-red); }
-        .btn-whatsapp { background: var(--whatsapp); margin-top: 15px; display: inline-flex; align-items: center; gap: 8px; }
-        .btn-whatsapp:hover { opacity: 0.9; transform: translateY(-2px); }
-        
-        h3 { color: var(--nbl-red); text-transform: uppercase; font-size: 1rem; margin-top: 0; }
+        th { text-align: left; background: #f8f9fb; padding: 12px; font-size: 11px; color: var(--blue); }
+        td { padding: 12px; border-bottom: 1px solid #eee; font-size: 12px; }
+        .status-ok { color: var(--success); font-weight: bold; font-size: 10px; }
+        .btn-whatsapp { background: #25d366; color: white; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; font-weight: bold; display: flex; align-items: center; gap: 8px; }
     </style>
 </head>
-
 <body>
     <div class="sidebar">
-        <h2>NBL LOG Admin</h2>
-        <button onclick="document.body.classList.toggle('dark-mode')" class="btn" style="background: rgba(255,255,255,0.1); width: 100%; margin-bottom: 10px;">
-            <i class="fas fa-moon"></i> Alternar Tema
-        </button>
-        <button onclick="location.href='/'" class="btn" style="background: rgba(255,255,255,0.1); width: 100%;">
-            <i class="fas fa-desktop"></i> Ir para Totem
-        </button>
+        <h2>NBL LOG</h2>
+        <p>Painel de Controle</p>
+        <hr style="opacity: 0.1;">
+        <button onclick="location.href='/'" style="width:100%; padding:10px; background:rgba(255,255,255,0.1); border:none; color:white; cursor:pointer;">Ir para Totem</button>
     </div>
 
     <div class="main">
         <div class="card">
-            <h3>Novo Cadastro</h3>
-            <div class="grid-form">
-                <input type="text" id="nome" placeholder="Nome">
-                <input type="text" id="sobrenome" placeholder="Sobrenome">
-                <input type="text" id="usuario_login" placeholder="Login">
-                <input type="text" id="codigo_atual" placeholder="Código">
-                <input type="text" id="empresa" placeholder="Empresa">
-                <input type="text" id="sede" placeholder="Filial">
-            </div>
-            <button onclick="salvarUsuario()" class="btn btn-red">CADASTRAR</button>
-        </div>
-
-        <div class="card">
             <div style="display: flex; justify-content: space-between; align-items: center;">
-                <h3>Monitoramento de Acessos</h3>
-                <button onclick="enviarRelatorioWhatsapp()" class="btn btn-whatsapp">
-                    <i class="fab fa-whatsapp"></i> ENVIAR RELATÓRIO
+                <h3 style="color: var(--red);">MONITORAMENTO EM TEMPO REAL (BATIDAS DO INDEX)</h3>
+                <button onclick="enviarWhatsapp()" class="btn-whatsapp">
+                    <i class="fab fa-whatsapp"></i> RELATÓRIO DO TURNO
                 </button>
             </div>
             
-            <div class="monitor-container">
+            <div class="monitor-grid">
                 <div>
-                    <h4>Portaria P1</h4>
-                    <table>
-                        <thead><tr><th>Colaborador</th><th>Status</th></tr></thead>
+                    <h4>PORTARIA P1</h4>
+                    <table id="tableP1">
+                        <thead><tr><th>Colaborador / Empresa</th><th>Data/Hora</th></tr></thead>
                         <tbody id="bodyP1"></tbody>
                     </table>
                 </div>
                 <div>
-                    <h4>Portaria P2</h4>
-                    <table>
-                        <thead><tr><th>Colaborador</th><th>Status</th></tr></thead>
+                    <h4>PORTARIA P2</h4>
+                    <table id="tableP2">
+                        <thead><tr><th>Colaborador / Empresa</th><th>Data/Hora</th></tr></thead>
                         <tbody id="bodyP2"></tbody>
                     </table>
                 </div>
@@ -108,111 +55,84 @@
         </div>
 
         <div class="card">
-            <h3>Gestão de Usuários</h3>
-            <table>
-                <thead><tr><th>Nome</th><th>Login</th><th>Empresa</th><th>Ações</th></tr></thead>
-                <tbody id="listaUsuarios"></tbody>
-            </table>
+            <h3 style="color: var(--blue);">EXPORTAR RELATÓRIOS OFICIAIS</h3>
+            <div style="display: flex; gap: 10px;">
+                <input type="date" id="rel_inicio">
+                <input type="date" id="rel_fim">
+                <select id="rel_turno">
+                    <option value="Todos">Todos os Turnos</option>
+                    <option value="Manhã">Manhã</option>
+                    <option value="Tarde">Tarde</option>
+                    <option value="Noite">Noite</option>
+                </select>
+                <button onclick="exportar('pdf')">Gerar PDF</button>
+                <button onclick="exportar('excel')">Gerar Excel</button>
+            </div>
         </div>
     </div>
 
     <script>
-        async function salvarUsuario() {
-            const data = {
-                nome: document.getElementById('nome').value,
-                sobrenome: document.getElementById('sobrenome').value,
-                usuario_login: document.getElementById('usuario_login').value.toLowerCase(),
-                codigo_atual: document.getElementById('codigo_atual').value,
-                empresa: document.getElementById('empresa').value,
-                sede: document.getElementById('sede').value
-            };
-            await fetch('/admin/usuarios/salvar', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
-            location.reload();
-        }
-
-        async function listarUsuarios() {
-            const res = await fetch('/admin/usuarios/listar');
-            const dados = await res.json();
-            document.getElementById('listaUsuarios').innerHTML = dados.map(u => `
-                <tr>
-                    <td>${u.nome} ${u.sobrenome}</td>
-                    <td>${u.usuario_login}</td>
-                    <td>${u.empresa}</td>
-                    <td><button onclick="excluir('${u.usuario_login}')" class="btn btn-red" style="padding: 5px 10px;"><i class="fas fa-trash"></i></button></td>
-                </tr>
-            `).join('');
-            return dados;
-        }
-
-        async function excluir(login) {
-            if(confirm("Excluir usuário?")) {
-                await fetch(`/admin/usuarios/excluir/${login}`, { method: 'DELETE' });
-                listarUsuarios();
-            }
-        }
-
         async function carregarMonitoramento() {
             try {
-                const [resLogs, resUsers] = await Promise.all([
-                    fetch('/admin/status_realtime'),
-                    fetch('/admin/usuarios/listar')
-                ]);
-                
-                const logs = await resLogs.json();
-                const users = await resUsers.json();
+                const res = await fetch('/admin/status_realtime');
+                const logs = await res.json();
                 const b1 = document.getElementById('bodyP1');
                 const b2 = document.getElementById('bodyP2');
-                
                 b1.innerHTML = ''; b2.innerHTML = '';
-                const verificados = logs.map(l => l.usuario_login || l.colaborador);
 
-                users.forEach(u => {
-                    const fezCheckin = verificados.includes(u.usuario_login);
-                    const logInfo = logs.find(l => (l.usuario_login || l.colaborador) === u.usuario_login);
-                    
-                    const row = `
+                logs.forEach(l => {
+                    const tr = `
                         <tr>
-                            <td><b>${u.nome}</b><br><small>${u.empresa}</small></td>
-                            <td><span class="status-badge ${fezCheckin ? 'verificado' : 'nao-verificado'}">${fezCheckin ? 'VERIFICADO' : 'PENDENTE'}</span></td>
+                            <td>
+                                <b>${l.nome} ${l.sobrenome}</b><br>
+                                <small>${l.empresa} (${l.sede})</small>
+                            </td>
+                            <td>
+                                <span class="status-ok">✅ VERIFICADO</span><br>
+                                <small>${l.data} ${l.hora}</small><br>
+                                <small style="color:var(--red)">Turno: ${l.turno_registro}</small>
+                            </td>
                         </tr>
                     `;
-
-                    if (logInfo?.portaria === 'P2') b2.innerHTML += row;
-                    else b1.innerHTML += row;
+                    if(l.portaria === 'P1') b1.innerHTML += tr;
+                    else b2.innerHTML += tr;
                 });
-            } catch (e) { console.error(e); }
+            } catch (e) { console.error("Erro:", e); }
         }
 
-        // --- NOVA FUNÇÃO WHATSAPP ---
-        function enviarRelatorioWhatsapp() {
-            const fone = "55919XXXXXXXX"; // <-- COLOQUE O SEU NÚMERO AQUI
-            let msg = "*📊 RELATÓRIO DE ACESSOS - NBL LOG*\n";
-            msg += "Data: " + new Date().toLocaleDateString() + "\n";
-            msg += "------------------------------------------\n\n";
+        function enviarWhatsapp() {
+            const numero = "55919XXXXXXXX"; // Configure seu número aqui
+            let msg = "*📋 RELATÓRIO DE BATIDAS - NBL LOG*\n";
+            msg += "*Gerado em:* " + new Date().toLocaleString() + "\n\n";
 
-            msg += "*🚪 PORTARIA P1*\n";
-            document.querySelectorAll('#bodyP1 tr').forEach(tr => {
-                const nome = tr.querySelector('b').innerText;
-                const status = tr.querySelector('.status-badge').innerText;
-                const icon = status === 'VERIFICADO' ? '✅' : '❌';
-                msg += `${icon} ${nome}: ${status}\n`;
+            msg += "*PORTARIA P1*\n";
+            document.querySelectorAll('#bodyP1 tr').forEach(row => {
+                const nome = row.querySelector('b').innerText;
+                const info = row.querySelectorAll('small')[1].innerText;
+                msg += `✅ ${nome} - ${info}\n`;
             });
 
-            msg += "\n*🚪 PORTARIA P2*\n";
-            document.querySelectorAll('#bodyP2 tr').forEach(tr => {
-                const nome = tr.querySelector('b').innerText;
-                const status = tr.querySelector('.status-badge').innerText;
-                const icon = status === 'VERIFICADO' ? '✅' : '❌';
-                msg += `${icon} ${nome}: ${status}\n`;
+            msg += "\n*PORTARIA P2*\n";
+            document.querySelectorAll('#bodyP2 tr').forEach(row => {
+                const nome = row.querySelector('b').innerText;
+                const info = row.querySelectorAll('small')[1].innerText;
+                msg += `✅ ${nome} - ${info}\n`;
             });
 
-            const url = `https://api.whatsapp.com/send?phone=${fone}&text=${encodeURIComponent(msg)}`;
-            window.open(url, '_blank');
+            window.open(`https://api.whatsapp.com/send?phone=${numero}&text=${encodeURIComponent(msg)}`, '_blank');
         }
 
-        listarUsuarios();
+        function exportar(fmt) {
+            const ini = document.getElementById('rel_inicio').value;
+            const fim = document.getElementById('rel_fim').value;
+            const t = document.getElementById('rel_turno').value;
+            if(!ini || !fim) return alert("Defina o período.");
+            window.open(`/admin/exportar/${fmt}?inicio=${ini}&fim=${fim}&turno=${t}`, '_blank');
+        }
+
+        // Atualiza a cada 1 hora (3600000ms)
         carregarMonitoramento();
-        setInterval(carregarMonitoramento, 30000); // Atualiza a cada 30 segundos
+        setInterval(carregarMonitoramento, 3600000);
     </script>
 </body>
 </html>
