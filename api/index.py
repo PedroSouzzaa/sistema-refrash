@@ -3,13 +3,12 @@ from flask import Flask, render_template, request, jsonify, make_response
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
-# --- CONFIGURAÇÃO DE CAMINHOS ---
-# Isso garante que o Flask ache a pasta 'templates' mesmo dentro do ambiente da Vercel
+# --- CONFIGURAÇÃO DE CAMINHO ---
 base_dir = os.path.dirname(os.path.abspath(__file__))
+# Tenta achar a pasta 'templates' dentro de 'api' ou na raiz
 template_path = os.path.join(base_dir, 'templates')
 
 app = Flask(__name__, template_folder=template_path)
-
 ADMIN_PASS = os.environ.get('ADMIN_PASSWORD', 'admin123')
 
 def get_db_connection():
@@ -23,12 +22,9 @@ def index():
 
 @app.route('/admin')
 def admin_page():
-    # Verifica se o admin está logado via cookie
     if request.cookies.get('auth_admin') != ADMIN_PASS:
         return render_template('login.html')
-    
-    # CORREÇÃO: Removido o "(1)" do nome do arquivo
-    # Certifique-se de que o arquivo na pasta se chama admin.html
+    # CORREÇÃO: Nome do arquivo sem o (1)
     return render_template('admin.html')
 
 @app.route('/admin/monitoramento')
@@ -63,6 +59,8 @@ def status_realtime():
     logs = cur.fetchall()
     conn.close()
     return jsonify(logs)
+
+# ... (outras APIs de salvar/excluir permanecem iguais)
 
 if __name__ == '__main__':
     app.run(debug=True)
