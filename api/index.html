@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Check-in | NBL LOG</title>
+    <link rel="shortcut icon" href="static/NBL_LOG_icone.jpg" type="image/jpeg">
+    <style>
+        :root {
+            --nbl-blue: #1C355E;
+            --nbl-red: #E31E24;
+            --bg: #f4f7f9;
+            --card-bg: white;
+            --text: #333;
+            --input-bg: white;
+            --input-border: #e1e8ed;
+        }
+
+        .dark-mode {
+            --bg: #121212;
+            --card-bg: #1e1e1e;
+            --text: #f4f7f9;
+            --input-bg: #333;
+            --input-border: #444;
+            --nbl-blue: #4a7ab5;
+        }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+            transition: background 0.3s;
+        }
+
+        .card {
+            background: var(--card-bg);
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15);
+            width: 90%;
+            max-width: 420px;
+            text-align: center;
+            border-top: 8px solid var(--nbl-blue);
+            transition: background 0.3s;
+        }
+
+        .logo-container {
+            margin-bottom: 20px;
+        }
+
+        .logo-container img {
+            max-width: 150px;
+            height: auto;
+            border-radius: 10px;
+        }
+
+        h2 {
+            color: var(--nbl-blue);
+            margin-bottom: 25px;
+            font-weight: 600;
+        }
+
+        input,
+        select {
+            width: 100%;
+            padding: 15px;
+            margin: 10px 0;
+            border: 2px solid var(--input-border);
+            background: var(--input-bg);
+            color: var(--text);
+            border-radius: 10px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+
+        button.main-btn {
+            width: 100%;
+            padding: 16px;
+            background: var(--nbl-red);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 18px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-top: 15px;
+            transition: background 0.3s;
+        }
+
+        button.main-btn:hover {
+            background: #c0191e;
+        }
+
+        .footer-nbl {
+            margin-top: 25px;
+            font-size: 11px;
+            color: #95a5a6;
+            text-transform: uppercase;
+        }
+
+        .controls {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .icon-btn {
+            background: var(--nbl-blue);
+            border: none;
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .dark-mode .icon-btn {
+            background: #444;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="controls">
+        <button class="icon-btn" onclick="toggleFullScreen()" title="Tela Cheia">&#x26F6;</button>
+        <button class="icon-btn" onclick="toggleDarkMode()" title="Modo Escuro">&#x1F312;</button>
+    </div>
+    <div class="card">
+        <div class="logo-container">
+            <img src="static/NBL_LOG_icone.jpg" alt="NBL LOG" onerror="this.src='/static/NBL_LOG_icone.jpg'">
+        </div>
+        <h2>Registro de Presença</h2>
+        <select id="portaria">
+            <option value="" disabled selected>Selecione a Portaria</option>
+            <option value="P1">Portaria 1 (P1)</option>
+            <option value="P2">Portaria 2 (P2)</option>
+        </select>
+        <select id="turno">
+            <option value="" disabled selected>Selecione seu Turno</option>
+            <option value="Manhã">Manhã (07h às 16h40)</option>
+            <option value="Tarde">Tarde (13h às 22h)</option>
+            <option value="Noite">Noite (22h às 07h)</option>
+        </select>
+        <input type="text" id="user" placeholder="ID de Usuário">
+        <input type="password" id="code" placeholder="Código Único">
+        <button class="main-btn" onclick="validar()">CONFIRMAR ACESSO</button>
+        <div class="footer-nbl">© NBL LOG - Operações</div>
+    </div>
+    <script>
+        function toggleFullScreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen();
+            } else if (document.exitFullscreen) {
+                document.exitFullscreen();
+            }
+        }
+        function toggleDarkMode() {
+            document.body.classList.toggle('dark-mode');
+            localStorage.setItem('theme', document.body.classList.contains('dark-mode') ? 'dark' : 'light');
+        }
+        if (localStorage.getItem('theme') === 'dark') document.body.classList.add('dark-mode');
+
+        async function validar() {
+            const payload = {
+                usuario: document.getElementById('user').value.trim(),
+                codigo: document.getElementById('code').value.trim(),
+                turno: document.getElementById('turno').value,
+                portaria: document.getElementById('portaria').value
+            };
+            if (!payload.portaria || !payload.turno || !payload.usuario || !payload.codigo) return alert("Preencha tudo.");
+            try {
+                const res = await fetch('/colaborador/validar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                const data = await res.json();
+                alert(data.msg);
+                if (res.ok) document.getElementById('code').value = '';
+            } catch (e) { alert("Erro de conexão."); }
+        }
+    </script>
+</body>
+
+</html>
