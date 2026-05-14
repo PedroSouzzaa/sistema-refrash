@@ -13,9 +13,11 @@
         .grid-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 20px; }
         .form-group { display: flex; flex-direction: column; }
         .form-group label { font-size: 12px; font-weight: bold; margin-bottom: 5px; color: var(--blue); }
-        .form-group input { padding: 10px; border: 1px solid #ddd; border-radius: 6px; }
-        .btn-action { border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; color: white; }
+        .form-group input, .form-group select { padding: 10px; border: 1px solid #ddd; border-radius: 6px; }
+        .btn-action { border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; color: white; margin-right: 10px; }
         .btn-save { background: var(--orange); }
+        .btn-pdf { background: var(--red); }
+        .btn-excel { background: var(--success); }
         .btn-whatsapp { background: #25d366; }
         .monitor-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
         table { width: 100%; border-collapse: collapse; font-size: 13px; }
@@ -26,12 +28,38 @@
 <body>
     <div class="sidebar">
         <h2>NBL LOG</h2>
-        <p>Painel Admin</p>
+        <p>Painel Administrativo</p>
         <hr>
-        <button onclick="location.href='/'" style="width:100%; padding:10px;">Ir para Totem</button>
+        <button onclick="location.href='/'" style="width:100%; padding:10px; cursor:pointer;">Ir para Totem</button>
     </div>
 
     <div class="main">
+        <div class="card">
+            <h3>Relatórios e Filtros</h3>
+            <div class="grid-form">
+                <div class="form-group">
+                    <label>Início</label>
+                    <input type="date" id="rel_inicio">
+                </div>
+                <div class="form-group">
+                    <label>Fim</label>
+                    <input type="date" id="rel_fim">
+                </div>
+                <div class="form-group">
+                    <label>Turno</label>
+                    <select id="rel_turno">
+                        <option value="Todos">Todos</option>
+                        <option value="ADM">ADM</option>
+                        <option value="Turno A">Turno A</option>
+                        <option value="Turno B">Turno B</option>
+                        <option value="Turno C">Turno C</option>
+                    </select>
+                </div>
+            </div>
+            <button onclick="exportar('pdf')" class="btn-action btn-pdf"><i class="fas fa-file-pdf"></i> PDF</button>
+            <button onclick="exportar('excel')" class="btn-action btn-excel"><i class="fas fa-file-excel"></i> EXCEL</button>
+        </div>
+
         <div class="card">
             <h3 id="formTitle">Novo Colaborador</h3>
             <div class="grid-form">
@@ -42,31 +70,37 @@
                 <div class="form-group"><label>Empresa</label><input type="text" id="empresa"></div>
                 <div class="form-group"><label>Sede</label><input type="text" id="sede"></div>
             </div>
-            <button onclick="salvarUsuario()" class="btn-action btn-save">SALVAR</button>
-            <button onclick="limparFormulario()" id="btnCancelar" style="display:none;">CANCELAR</button>
+            <button onclick="salvarUsuario()" class="btn-action btn-save">SALVAR USUÁRIO</button>
         </div>
 
         <div class="card">
             <div style="display:flex; justify-content:space-between; align-items:center;">
                 <h3>Monitoramento em Tempo Real</h3>
-                <button onclick="enviarWhatsapp()" class="btn-action btn-whatsapp">ENVIAR WHATSAPP</button>
+                <button onclick="enviarWhatsapp()" class="btn-action btn-whatsapp"><i class="fab fa-whatsapp"></i> WHATSAPP</button>
             </div>
             <div class="monitor-grid">
                 <div><h4>PORTARIA P1</h4><table><thead><tr><th>Nome</th><th>Hora</th></tr></thead><tbody id="bodyP1"></tbody></table></div>
                 <div><h4>PORTARIA P2</h4><table><thead><tr><th>Nome</th><th>Hora</th></tr></thead><tbody id="bodyP2"></tbody></table></div>
             </div>
         </div>
-
-        <div class="card">
-            <h3>Gestão de Usuários</h3>
-            <table>
-                <thead><tr><th>Nome</th><th>ID</th><th>Empresa</th><th>Ações</th></tr></thead>
-                <tbody id="listaUsuarios"></tbody>
-            </table>
-        </div>
     </div>
 
     <script>
+        // Função para exportar Relatórios
+        function exportar(formato) {
+            const inicio = document.getElementById('rel_inicio').value;
+            const fim = document.getElementById('rel_fim').value;
+            const turno = document.getElementById('rel_turno').value;
+
+            if(!inicio || !fim) {
+                alert("Por favor, selecione as datas de início e fim.");
+                return;
+            }
+
+            const url = `/admin/exportar/${formato}?inicio=${inicio}&fim=${fim}&turno=${turno}`;
+            window.open(url, '_blank');
+        }
+
         async function salvarUsuario() {
             const data = {
                 nome: document.getElementById('nome').value,
@@ -81,35 +115,19 @@
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify(data)
             });
-            if(res.ok) { alert("Salvo!"); limparFormulario(); listarUsuarios(); }
-        }
-
-        async function listarUsuarios() {
-            const res = await fetch('/admin/usuarios/listar');
-            const users = await res.json();
-            document.getElementById('listaUsuarios').innerHTML = users.map(u => `
-                <tr>
-                    <td>${u.nome} ${u.sobrenome}</td>
-                    <td>${u.usuario_login}</td>
-                    <td>${u.empresa}</td>
-                    <td>
-                        <button onclick='prepararEdicao(${JSON.stringify(u)})'>Editar</button>
-                        <button onclick="excluirUsuario('${u.usuario_login}')">Excluir</button>
-                    </td>
-                </tr>
-            `).join('');
+            if(res.ok) { alert("Usuário salvo com sucesso!"); location.reload(); }
         }
 
         function enviarWhatsapp() {
-            const numero = "55919XXXXXXXX"; // Configure seu numero aqui
+            const numero = "55919XXXXXXXX"; // Coloque o número aqui
             let msg = "*📋 RELATÓRIO DE BATIDAS - NBL LOG*\n\n";
             
-            msg += "*[ PORTARIA P1 ]*\n";
+            msg += "*PORTARIA P1*\n";
             document.querySelectorAll('#bodyP1 tr').forEach(r => {
                 msg += `✅ ${r.cells[0].innerText.split('\n')[0]} (${r.cells[1].innerText})\n`;
             });
             
-            msg += "\n*[ PORTARIA P2 ]*\n";
+            msg += "\n*PORTARIA P2*\n";
             document.querySelectorAll('#bodyP2 tr').forEach(r => {
                 msg += `✅ ${r.cells[0].innerText.split('\n')[0]} (${r.cells[1].innerText})\n`;
             });
@@ -128,13 +146,6 @@
             });
         }
 
-        function limparFormulario() {
-            document.querySelectorAll('input').forEach(i => { i.value = ''; i.readOnly = false; });
-            document.getElementById('formTitle').innerText = "Novo Colaborador";
-            document.getElementById('btnCancelar').style.display = "none";
-        }
-
-        listarUsuarios();
         carregarMonitoramento();
         setInterval(carregarMonitoramento, 30000);
     </script>
