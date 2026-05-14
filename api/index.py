@@ -22,7 +22,6 @@ ADMIN_PASS = os.environ.get('ADMIN_PASSWORD', 'admin123')
 def get_db_connection():
     return psycopg2.connect(os.environ.get('POSTGRES_URL'))
 
-# --- ROTAS DE NAVEGAÇÃO ---
 @app.route('/')
 def index(): 
     return render_template('index.html')
@@ -39,7 +38,6 @@ def pagina_usuarios():
         return render_template('login.html')
     return render_template('usuarios.html')
 
-# --- API DE LOGIN ADMIN ---
 @app.route('/api/login', methods=['POST'])
 def api_login():
     data = request.json
@@ -49,13 +47,12 @@ def api_login():
         return resp
     return jsonify({"status": "erro"}), 401
 
-# --- API DE GESTÃO DE USUÁRIOS (CRUD) ---
+# --- CRUD DE USUÁRIOS ---
 @app.route('/api/usuarios/listar')
 def api_listar_usuarios():
     if request.cookies.get('auth_admin') != ADMIN_PASS: return jsonify([]), 401
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
-    # Seleciona todos os campos, incluindo o novo codigo_acesso
     cur.execute("SELECT nome, sobrenome, usuario_login, codigo_acesso, empresa, sede FROM usuarios ORDER BY nome ASC")
     usuarios = cur.fetchall()
     conn.close()
@@ -92,7 +89,7 @@ def api_excluir_usuario(login):
     conn.close()
     return jsonify({"status": "ok"})
 
-# --- MONITORAMENTO E RELATÓRIOS ---
+# --- MONITORAMENTO E EXPORTAÇÃO ---
 @app.route('/admin/status_realtime')
 def status_realtime():
     if request.cookies.get('auth_admin') != ADMIN_PASS: return jsonify([]), 401
@@ -145,7 +142,6 @@ def exportar(formato):
         resp.headers["Content-type"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         return resp
     
-    # PDF
     doc = SimpleDocTemplate(output, pagesize=A4)
     styles = getSampleStyleSheet()
     elements = [Paragraph("Relatório de Batidas - NBL LOG", styles['Title']), Spacer(1, 12)]
