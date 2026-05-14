@@ -12,8 +12,9 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet
 
-# --- CONFIGURAÇÃO DE CAMINHOS ---
+# --- CORREÇÃO DEFINITIVA DE CAMINHOS (TEMPLATES) ---
 base_dir = os.path.abspath(os.path.dirname(__file__))
+# Tenta encontrar a pasta templates no mesmo nível ou um nível acima
 template_dir = os.path.join(base_dir, 'templates')
 if not os.path.exists(template_dir):
     template_dir = os.path.abspath(os.path.join(base_dir, '..', 'templates'))
@@ -59,35 +60,6 @@ def status_realtime():
     conn.close()
     return jsonify(logs)
 
-@app.route('/admin/usuarios/listar')
-def listar_usuarios():
-    conn = get_db_connection()
-    cur = conn.cursor(cursor_factory=RealDictCursor)
-    cur.execute("SELECT nome, sobrenome, usuario_login, codigo_atual, empresa, sede FROM usuarios ORDER BY nome ASC")
-    users = cur.fetchall()
-    conn.close()
-    return jsonify(users)
-
-@app.route('/admin/usuarios/salvar', methods=['POST'])
-def salvar_usuario():
-    data = request.json
-    conn = get_db_connection()
-    cur = conn.cursor()
-    try:
-        cur.execute("""
-            INSERT INTO usuarios (nome, sobrenome, usuario_login, codigo_atual, empresa, sede)
-            VALUES (%s, %s, %s, %s, %s, %s)
-            ON CONFLICT (usuario_login) DO UPDATE SET
-            nome=EXCLUDED.nome, sobrenome=EXCLUDED.sobrenome, 
-            codigo_atual=EXCLUDED.codigo_atual, empresa=EXCLUDED.empresa, sede=EXCLUDED.sede
-        """, (data['nome'], data['sobrenome'], data['usuario_login'], data['codigo_atual'], data['empresa'], data['sede']))
-        conn.commit()
-        return jsonify({"status": "ok"})
-    except Exception as e:
-        return jsonify({"status": "error", "msg": str(e)}), 500
-    finally:
-        conn.close()
-
 @app.route('/admin/exportar/<formato>')
 def exportar(formato):
     inicio = request.args.get('inicio')
@@ -95,6 +67,7 @@ def exportar(formato):
     turno = request.args.get('turno', 'Todos')
     
     conn = get_db_connection()
+    # Query ajustada para evitar KeyError: usa 'turno' e formatação SQL
     query = """
         SELECT 
             u.nome || ' ' || u.sobrenome as "Colaborador",
@@ -127,11 +100,11 @@ def exportar(formato):
         resp.headers["Content-type"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         return resp
     
-    # Geração de PDF
+    # PDF
     output = io.BytesIO()
     doc = SimpleDocTemplate(output, pagesize=A4)
     styles = getSampleStyleSheet()
-    elements = [Paragraph("Relatorio de Batidas - NBL LOG", styles['Title']), Spacer(1, 12)]
+    elements = [Paragraph("Relatório de Batidas - NBL LOG", styles['Title']), Spacer(1, 12)]
     dados_tabela = [df.columns.to_list()] + df.values.tolist()
     t = Table(dados_tabela)
     t.setStyle(TableStyle([
@@ -143,11 +116,19 @@ def exportar(formato):
     ]))
     elements.append(t)
     doc.build(elements)
-    
     resp = make_response(output.getvalue())
     resp.headers["Content-Disposition"] = "attachment; filename=relatorio_nbl.pdf"
     resp.headers["Content-type"] = "application/pdf"
     return resp
+
+@app.route('/admin/usuarios/listar')
+def listar_usuarios():
+    conn = get_db_connection()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    cur.execute("SELECT nome, sobrenome, usuario_login, empresa FROM usuarios ORDER BY nome ASC")
+    users = cur.fetchall()
+    conn.close()
+    return jsonify(users)
 
 if __name__ == '__main__':
     app.run(debug=True)
