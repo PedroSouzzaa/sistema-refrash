@@ -12,7 +12,7 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet
 
-app = Flask(__name__, template_folder='../templates')
+app = Flask(__name__, template_folder='templates')
 ADMIN_PASS = os.environ.get('ADMIN_PASSWORD', 'admin123')
 
 def get_db_connection():
@@ -26,90 +26,60 @@ def admin_page():
     if request.cookies.get('auth_admin') != ADMIN_PASS: return render_template('login.html')
     return render_template('admin.html')
 
-# --- ROTA DE MONITORAMENTO FILTRADA POR BATIDAS REAIS ---
 @app.route('/admin/status_realtime')
 def status_realtime():
-    if request.cookies.get('auth_admin') != ADMIN_PASS: return jsonify([]), 401
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
-    # Busca apenas quem bateu o ponto hoje, trazendo os dados do usuário vinculado
-    query = """
-        SELECT 
-            u.nome, u.sobrenome, u.empresa, u.sede,
-            l.portaria, l.turno_registro, 
-            TO_CHAR(l.data_hora, 'HH24:MI:SS') as hora,
-            TO_CHAR(l.data_hora, 'DD/MM/YYYY') as data
-        FROM logs l
-        JOIN usuarios u ON l.colaborador = u.usuario_login
-        WHERE l.data_hora >= CURRENT_DATE
-        ORDER BY l.data_hora DESC
-    """
-    cur.execute(query)
+    cur.execute("""
+        SELECT u.nome, u.sobrenome, u.empresa, l.portaria, l.data_hora as hora 
+        FROM logs l 
+        JOIN usuarios u ON l.colaborador = u.usuario_login 
+        ORDER BY l.data_hora DESC LIMIT 20
+    """)
     logs = cur.fetchall()
-    cur.close()
+    for l in logs: l['hora'] = l['hora'].strftime('%H:%M')
     conn.close()
     return jsonify(logs)
 
-# --- EXPORTAÇÃO DE RELATÓRIOS (PDF/EXCEL) ---
-@app.route('/admin/exportar/<formato>')
-def exportar(formato):
-    inicio = request.args.get('inicio')
-    fim = request.args.get('fim')
-    turno = request.args.get('turno')
-    
+@app.route('/admin/usuarios/listar')
+def listar_usuarios():
     conn = get_db_connection()
-    query = """
-        SELECT 
-            TO_CHAR(l.data_hora, 'DD/MM/YYYY HH24:MI') as "Data/Hora",
-            u.nome || ' ' || u.sobrenome as "Colaborador",
-            u.empresa as "Empresa",
-            u.sede as "Filial",
-            l.portaria as "Portaria",
-            l.turno_registro as "Turno"
-        FROM logs l
-        JOIN usuarios u ON l.colaborador = u.usuario_login
-        WHERE 1=1
-    """
-    params = []
-    if inicio and fim:
-        query += " AND l.data_hora BETWEEN %s AND %s"; params.extend([inicio, fim])
-    if turno and turno != 'Todos':
-        query += " AND l.turno_registro = %s"; params.append(turno)
-    
-    query += " ORDER BY l.data_hora ASC"
-    df = pd.read_sql(query, conn, params=params)
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    cur.execute("SELECT nome, sobrenome, usuario_login, codigo_atual, empresa, sede FROM usuarios ORDER BY nome ASC")
+    users = cur.fetchall()
     conn.close()
+    return jsonify(users)
 
-    if formato == 'excel':
-        output = io.BytesIO()
-        with pd.ExcelWriter(output, engine='openpyxl') as writer:
-            df.to_excel(writer, index=False)
-        resp = make_response(output.getvalue())
-        resp.headers["Content-Disposition"] = "attachment; filename=relatorio_nbl.xlsx"
-        resp.headers["Content-type"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        return resp
+@app.route('/admin/usuarios/salvar', methods=['POST'])
+def salvar_usuario():
+    data = request.json
+    conn = get_db_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute("""
+            INSERT INTO usuarios (nome, sobrenome, usuario_login, codigo_atual, empresa, sede)
+            VALUES (%s, %s, %s, %s, %s, %s)
+            ON CONFLICT (usuario_login) DO UPDATE SET
+            nome=EXCLUDED.nome, sobrenome=EXCLUDED.sobrenome, 
+            codigo_atual=EXCLUDED.codigo_atual, empresa=EXCLUDED.empresa, sede=EXCLUDED.sede
+        """, (data['nome'], data['sobrenome'], data['usuario_login'], data['codigo_atual'], data['empresa'], data['sede']))
+        conn.commit()
+        return jsonify({"status": "ok"})
+    except Exception as e:
+        return jsonify({"status": "error", "msg": str(e)}), 500
+    finally:
+        conn.close()
 
-    # Geração de PDF
-    output = io.BytesIO()
-    doc = SimpleDocTemplate(output, pagesize=A4)
-    styles = getSampleStyleSheet()
-    elements = [Paragraph("Relatório de Batidas - NBL LOG", styles['Title']), Spacer(1, 12)]
-    
-    dados_tabela = [df.columns.to_list()] + df.values.tolist()
-    t = Table(dados_tabela)
-    t.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('GRID', (0, 0), (-1, -1), 1, colors.black),
-        ('FONTSIZE', (0, 0), (-1, -1), 8),
-    ]))
-    elements.append(t)
-    doc.build(elements)
-    resp = make_response(output.getvalue())
-    resp.headers["Content-Disposition"] = "attachment; filename=relatorio_nbl.pdf"
-    resp.headers["Content-type"] = "application/pdf"
-    return resp
+@app.route('/admin/usuarios/excluir/<login>', methods=['DELETE'])
+def excluir_usuario(login):
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM usuarios WHERE usuario_login = %s", (login,))
+    conn.commit()
+    conn.close()
+    return jsonify({"status": "ok"})
+
+# Mantenha suas rotas de exportar e login conforme o original...
 
 if __name__ == '__main__':
     app.run(debug=True)
