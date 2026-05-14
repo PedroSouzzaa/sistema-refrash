@@ -6,33 +6,19 @@
     <title>Gestão de Usuários | NBL LOG</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        :root { --blue: #002855; --red: #E31E24; --bg: #f0f3f6; --text: #333; }
+        :root { --blue: #002855; --red: #E31E24; --bg: #f0f3f6; }
         body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; display: flex; }
-        
         .sidebar { width: 260px; background: var(--blue); color: white; height: 100vh; position: fixed; padding: 20px; box-sizing: border-box; }
-        .sidebar h2 { border-bottom: 2px solid rgba(255,255,255,0.1); padding-bottom: 15px; }
-        .nav-btn { width: 100%; padding: 12px; margin-bottom: 10px; border: none; border-radius: 8px; background: rgba(255,255,255,0.1); color: white; cursor: pointer; text-align: left; transition: 0.3s; }
-        .nav-btn:hover { background: rgba(255,255,255,0.2); }
+        .nav-btn { width: 100%; padding: 12px; margin-bottom: 10px; border: none; border-radius: 8px; background: rgba(255,255,255,0.1); color: white; cursor: pointer; text-align: left; }
         .nav-btn.active { background: #4a7ab5; }
-
         .main { margin-left: 260px; padding: 30px; width: calc(100% - 260px); }
         .card { background: white; border-radius: 12px; padding: 20px; margin-bottom: 25px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
-        
         .grid-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 20px; }
-        input { padding: 12px; border: 1px solid #ddd; border-radius: 6px; outline: none; }
-        input:focus { border-color: var(--blue); }
-        
-        /* Destaque para o campo de código numérico */
-        .input-code { border: 2px solid #b3c7e6; background-color: #f8fbff; font-weight: bold; }
-
+        input { padding: 12px; border: 1px solid #ddd; border-radius: 6px; }
         .btn-primary { background: var(--blue); color: white; border: none; padding: 12px 25px; border-radius: 6px; cursor: pointer; font-weight: bold; }
-        .btn-delete { background: var(--red); color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; }
-
         table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th { text-align: left; padding: 15px; background: #f8f9fa; border-bottom: 2px solid #eee; color: var(--blue); }
-        td { padding: 15px; border-bottom: 1px solid #eee; }
-        tr:hover { background: #fafafa; }
-        .badge-code { background: #e1e8f0; padding: 4px 8px; border-radius: 4px; font-family: monospace; font-weight: bold; color: var(--blue); }
+        th, td { padding: 15px; border-bottom: 1px solid #eee; text-align: left; }
+        .badge { background: #e1e8f0; padding: 4px 8px; border-radius: 4px; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -40,101 +26,78 @@
         <h2>NBL LOG</h2>
         <button class="nav-btn" onclick="location.href='/admin'"><i class="fas fa-chart-line"></i> Monitoramento</button>
         <button class="nav-btn active" onclick="location.href='/admin/usuarios'"><i class="fas fa-users"></i> Gestão de Usuários</button>
-        <button class="nav-btn" onclick="location.href='/'" style="margin-top: 20px;"><i class="fas fa-arrow-left"></i> Sair</button>
     </div>
 
     <div class="main">
         <div class="card">
-            <h3 id="formTitle">Cadastrar Novo Colaborador</h3>
+            <h3>Cadastrar Novo Colaborador</h3>
             <div class="grid-form">
                 <input type="text" id="nome" placeholder="Nome">
                 <input type="text" id="sobrenome" placeholder="Sobrenome">
                 <input type="text" id="usuario_login" placeholder="Login / Matrícula">
-                <input type="text" id="codigo_acesso" class="input-code" placeholder="Código (Apenas Números)" inputmode="numeric" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
+                <input type="text" id="codigo_acesso" placeholder="Código Numérico" inputmode="numeric" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
                 <input type="text" id="empresa" placeholder="Empresa">
-                <input type="text" id="sede" placeholder="Sede / Filial">
+                <input type="text" id="sede" placeholder="Sede">
             </div>
             <button onclick="salvarUsuario()" class="btn-primary">Salvar Usuário</button>
         </div>
 
         <div class="card">
-            <h3>Colaboradores Cadastrados</h3>
             <table>
                 <thead>
                     <tr>
-                        <th>Nome Completo</th>
+                        <th>Nome</th>
                         <th>Login</th>
-                        <th>Código Acesso</th>
+                        <th>Cód. Acesso</th>
                         <th>Empresa</th>
                         <th>Ações</th>
                     </tr>
                 </thead>
-                <tbody id="tabelaUsuarios">
-                    </tbody>
+                <tbody id="tabelaUsuarios"></tbody>
             </table>
         </div>
     </div>
 
     <script>
-        async function listarUsuarios() {
+        async function listar() {
             const res = await fetch('/api/usuarios/listar');
             const data = await res.json();
             const tbody = document.getElementById('tabelaUsuarios');
             tbody.innerHTML = '';
-            
             data.forEach(u => {
                 tbody.innerHTML += `
                     <tr>
                         <td><b>${u.nome} ${u.sobrenome}</b></td>
                         <td>${u.usuario_login}</td>
-                        <td><span class="badge-code">${u.codigo_acesso || '---'}</span></td>
+                        <td><span class="badge">${u.codigo_acesso || '---'}</span></td>
                         <td>${u.empresa}</td>
-                        <td>
-                            <button class="btn-delete" onclick="excluirUsuario('${u.usuario_login}')">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </td>
-                    </tr>
-                `;
+                        <td><button onclick="excluir('${u.usuario_login}')" style="color:red; cursor:pointer; background:none; border:none;"><i class="fas fa-trash"></i></button></td>
+                    </tr>`;
             });
         }
 
         async function salvarUsuario() {
             const payload = {
-                nome: document.getElementById('nome').value.trim(),
-                sobrenome: document.getElementById('sobrenome').value.trim(),
-                usuario_login: document.getElementById('usuario_login').value.trim(),
-                codigo_acesso: document.getElementById('codigo_acesso').value.trim(),
-                empresa: document.getElementById('empresa').value.trim(),
-                sede: document.getElementById('sede').value.trim()
+                nome: document.getElementById('nome').value,
+                sobrenome: document.getElementById('sobrenome').value,
+                usuario_login: document.getElementById('usuario_login').value,
+                codigo_acesso: document.getElementById('codigo_acesso').value,
+                empresa: document.getElementById('empresa').value,
+                sede: document.getElementById('sede').value
             };
-
-            if (!payload.usuario_login || !payload.nome || !payload.codigo_acesso) {
-                return alert("Preencha Nome, Login e o Código Numérico.");
-            }
-
-            const res = await fetch('/api/usuarios/salvar', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-
-            if (res.ok) {
-                alert("Usuário salvo com sucesso!");
-                document.querySelectorAll('input').forEach(i => i.value = '');
-                listarUsuarios();
-            } else {
-                alert("Erro ao salvar usuário.");
-            }
+            if(!payload.nome || !payload.usuario_login || !payload.codigo_acesso) return alert("Preencha Nome, Login e Código.");
+            await fetch('/api/usuarios/salvar', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
+            document.querySelectorAll('input').forEach(i => i.value = '');
+            listar();
         }
 
-        async function excluirUsuario(login) {
-            if (!confirm(`Deseja excluir o usuário ${login}?`)) return;
-            const res = await fetch(`/api/usuarios/excluir/${login}`, { method: 'DELETE' });
-            if (res.ok) listarUsuarios();
+        async function excluir(login) {
+            if(confirm("Deseja excluir?")) {
+                await fetch(`/api/usuarios/excluir/${login}`, { method: 'DELETE' });
+                listar();
+            }
         }
-
-        listarUsuarios();
+        listar();
     </script>
 </body>
 </html>
