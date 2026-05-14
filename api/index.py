@@ -92,10 +92,9 @@ def salvar_usuario():
 def exportar(formato):
     inicio = request.args.get('inicio')
     fim = request.args.get('fim')
-    turno = request.args.get('turno')
+    turno = request.args.get('turno', 'Todos')
     
     conn = get_db_connection()
-    # Usando apenas colunas garantidas para evitar KeyError
     query = """
         SELECT 
             u.nome || ' ' || u.sobrenome as "Colaborador",
@@ -128,6 +127,7 @@ def exportar(formato):
         resp.headers["Content-type"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         return resp
     
+    # Geração de PDF
     output = io.BytesIO()
     doc = SimpleDocTemplate(output, pagesize=A4)
     styles = getSampleStyleSheet()
@@ -143,6 +143,7 @@ def exportar(formato):
     ]))
     elements.append(t)
     doc.build(elements)
+    
     resp = make_response(output.getvalue())
     resp.headers["Content-Disposition"] = "attachment; filename=relatorio_nbl.pdf"
     resp.headers["Content-type"] = "application/pdf"
