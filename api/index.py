@@ -39,7 +39,7 @@ def pagina_usuarios():
         return render_template('login.html')
     return render_template('usuarios.html')
 
-# --- API DE LOGIN ---
+# --- API DE LOGIN ADMIN ---
 @app.route('/api/login', methods=['POST'])
 def api_login():
     data = request.json
@@ -55,7 +55,8 @@ def api_listar_usuarios():
     if request.cookies.get('auth_admin') != ADMIN_PASS: return jsonify([]), 401
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
-    cur.execute("SELECT nome, sobrenome, usuario_login, empresa, sede FROM usuarios ORDER BY nome ASC")
+    # Seleciona todos os campos, incluindo o novo codigo_acesso
+    cur.execute("SELECT nome, sobrenome, usuario_login, codigo_acesso, empresa, sede FROM usuarios ORDER BY nome ASC")
     usuarios = cur.fetchall()
     conn.close()
     return jsonify(usuarios)
@@ -67,13 +68,13 @@ def api_salvar_usuario():
     conn = get_db_connection()
     cur = conn.cursor()
     try:
-        # Tenta inserir ou atualizar se o login já existir
         cur.execute("""
-            INSERT INTO usuarios (nome, sobrenome, usuario_login, empresa, sede)
-            VALUES (%s, %s, %s, %s, %s)
+            INSERT INTO usuarios (nome, sobrenome, usuario_login, codigo_acesso, empresa, sede)
+            VALUES (%s, %s, %s, %s, %s, %s)
             ON CONFLICT (usuario_login) DO UPDATE SET
-            nome=EXCLUDED.nome, sobrenome=EXCLUDED.sobrenome, empresa=EXCLUDED.empresa, sede=EXCLUDED.sede
-        """, (data['nome'], data['sobrenome'], data['usuario_login'], data['empresa'], data['sede']))
+            nome=EXCLUDED.nome, sobrenome=EXCLUDED.sobrenome, 
+            codigo_acesso=EXCLUDED.codigo_acesso, empresa=EXCLUDED.empresa, sede=EXCLUDED.sede
+        """, (data['nome'], data['sobrenome'], data['usuario_login'], data['codigo_acesso'], data['empresa'], data['sede']))
         conn.commit()
         return jsonify({"status": "ok"})
     except Exception as e:
