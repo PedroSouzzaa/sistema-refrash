@@ -10,11 +10,11 @@
         .sidebar { width: 260px; background: var(--blue); color: white; height: 100vh; position: fixed; padding: 20px; box-sizing: border-box; }
         .main { margin-left: 260px; padding: 30px; width: calc(100% - 260px); }
         .card { background: white; border-radius: 12px; padding: 20px; margin-bottom: 25px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-        .grid-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .grid-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 20px; }
         .form-group { display: flex; flex-direction: column; }
         .form-group label { font-size: 12px; font-weight: bold; margin-bottom: 5px; color: var(--blue); }
         .form-group input, .form-group select { padding: 10px; border: 1px solid #ddd; border-radius: 6px; }
-        .btn-action { border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; color: white; margin-right: 5px; }
+        .btn-action { border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; color: white; margin-right: 10px; }
         .btn-pdf { background: var(--red); }
         .btn-excel { background: var(--success); }
         .btn-whatsapp { background: #25d366; }
@@ -27,7 +27,7 @@
 <body>
     <div class="sidebar">
         <h2>NBL LOG</h2>
-        <p>Painel Admin</p>
+        <p>Admin Panel</p>
         <button onclick="location.href='/'" style="width:100%; padding:10px; cursor:pointer;">Ir para Totem</button>
     </div>
 
@@ -54,7 +54,7 @@
 
         <div class="card">
             <div style="display:flex; justify-content:space-between; align-items:center;">
-                <h3>Monitoramento Atual</h3>
+                <h3>Monitoramento Realtime</h3>
                 <button onclick="enviarWhatsapp()" class="btn-action btn-whatsapp"><i class="fab fa-whatsapp"></i> WHATSAPP</button>
             </div>
             <div class="monitor-grid">
@@ -66,42 +66,40 @@
 
     <script>
         function exportar(formato) {
-            const inicio = document.getElementById('rel_inicio').value;
+            const ini = document.getElementById('rel_inicio').value;
             const fim = document.getElementById('rel_fim').value;
-            const turno = document.getElementById('rel_turno').value;
-            if(!inicio || !fim) return alert("Selecione o período.");
-            window.open(`/admin/exportar/${formato}?inicio=${inicio}&fim=${fim}&turno=${turno}`, '_blank');
+            const t = document.getElementById('rel_turno').value;
+            if(!ini || !fim) return alert("Selecione o período.");
+            window.open(`/admin/exportar/${formato}?inicio=${ini}&fim=${fim}&turno=${t}`, '_blank');
         }
 
         function enviarWhatsapp() {
-            const numero = "55919XXXXXXXX"; // Configure seu número
-            let msg = "*📋 RELATÓRIO DE BATIDAS - NBL LOG*\n\n";
+            const numero = "55919XXXXXXXX"; // Coloque seu número aqui
+            let msg = "*📊 RELATÓRIO DE BATIDAS - NBL LOG*\n\n";
             
             msg += "*P1:*\n";
-            document.querySelectorAll('#bodyP1 tr').forEach(r => {
-                msg += `✅ ${r.cells[0].innerText.split('\n')[0]} (${r.cells[1].innerText})\n`;
+            document.querySelectorAll('#bodyP1 tr').forEach(row => {
+                msg += `✅ ${row.cells[0].innerText.split('\n')[0]} (${row.cells[1].innerText})\n`;
             });
             
             msg += "\n*P2:*\n";
-            document.querySelectorAll('#bodyP2 tr').forEach(r => {
-                msg += `✅ ${r.cells[0].innerText.split('\n')[0]} (${r.cells[1].innerText})\n`;
+            document.querySelectorAll('#bodyP2 tr').forEach(row => {
+                msg += `✅ ${row.cells[0].innerText.split('\n')[0]} (${row.cells[1].innerText})\n`;
             });
 
             window.open(`https://api.whatsapp.com/send?phone=${numero}&text=${encodeURIComponent(msg)}`, '_blank');
         }
 
         async function carregarMonitoramento() {
-            try {
-                const res = await fetch('/admin/status_realtime');
-                const logs = await res.json();
-                const b1 = document.getElementById('bodyP1');
-                const b2 = document.getElementById('bodyP2');
-                b1.innerHTML = ''; b2.innerHTML = '';
-                logs.forEach(l => {
-                    const tr = `<tr><td><b>${l.nome}</b><br><small>${l.empresa}</small></td><td>${l.hora}</td></tr>`;
-                    if(l.portaria === 'P1') b1.innerHTML += tr; else b2.innerHTML += tr;
-                });
-            } catch (e) { console.error("Erro ao carregar monitoramento"); }
+            const res = await fetch('/admin/status_realtime');
+            const logs = await res.json();
+            const b1 = document.getElementById('bodyP1');
+            const b2 = document.getElementById('bodyP2');
+            b1.innerHTML = ''; b2.innerHTML = '';
+            logs.forEach(l => {
+                const row = `<tr><td><b>${l.nome} ${l.sobrenome}</b><br><small>${l.empresa}</small></td><td>${l.hora}</td></tr>`;
+                if(l.portaria === 'P1') b1.innerHTML += row; else b2.innerHTML += row;
+            });
         }
 
         carregarMonitoramento();
