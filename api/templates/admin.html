@@ -1,13 +1,116 @@
-// Dentro do seu admin.html, na função salvarUsuario:
-async function salvarUsuario() {
-    const data = {
-        nome: document.getElementById('nome').value,
-        sobrenome: document.getElementById('sobrenome').value,
-        usuario_login: document.getElementById('usuario_login').value.toLowerCase(),
-        // Alterado de codigo_atual para codigo_acesso para combinar com o Python
-        codigo_acesso: document.getElementById('codigo_acesso').value, 
-        empresa: document.getElementById('empresa').value,
-        sede: document.getElementById('sede').value
-    };
-    // ... resto do fetch
-}
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin | NBL LOG</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root { --blue: #002855; --bg: #f0f3f6; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; display: flex; }
+        .sidebar { width: 250px; background: var(--blue); color: white; height: 100vh; position: fixed; padding: 20px; }
+        .main { margin-left: 250px; padding: 30px; width: 100%; }
+        .card { background: white; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { text-align: left; padding: 12px; border-bottom: 1px solid #eee; }
+        input { padding: 10px; border: 1px solid #ddd; border-radius: 5px; width: 100%; margin-bottom: 10px; box-sizing: border-box; }
+        .btn { padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        .btn-blue { background: var(--blue); color: white; }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <h2>NBL ADMIN</h2>
+        <p>Monitoramento e Gestão</p>
+        <button class="btn" style="width:100%; margin-top:20px;" onclick="exportar('excel')">Exportar Excel</button>
+        <button class="btn" style="width:100%; margin-top:10px;" onclick="location.href='/'">Sair</button>
+    </div>
+
+    <div class="main">
+        <div class="grid">
+            <div class="card">
+                <h3>Cadastrar Colaborador</h3>
+                <input type="text" id="nome" placeholder="Nome">
+                <input type="text" id="sobrenome" placeholder="Sobrenome">
+                <input type="text" id="usuario_login" placeholder="Login (Matrícula)">
+                <input type="text" id="codigo_acesso" placeholder="Código Numérico">
+                <input type="text" id="empresa" placeholder="Empresa">
+                <input type="text" id="sede" placeholder="Sede">
+                <button class="btn btn-blue" onclick="salvarUsuario()">SALVAR</button>
+            </div>
+            <div class="card">
+                <h3>Últimos Acessos</h3>
+                <table>
+                    <thead><tr><th>Colaborador</th><th>Hora</th><th>Portaria</th></tr></thead>
+                    <tbody id="listaLogs"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>Lista de Colaboradores</h3>
+            <table>
+                <thead><tr><th>Nome</th><th>Login</th><th>Cód. Acesso</th><th>Ações</th></tr></thead>
+                <tbody id="tabelaUsuarios"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        async function listarUsuarios() {
+            const res = await fetch('/api/usuarios/listar');
+            const data = await res.json();
+            const tbody = document.getElementById('tabelaUsuarios');
+            tbody.innerHTML = '';
+            data.forEach(u => {
+                tbody.innerHTML += `<tr><td>${u.nome} ${u.sobrenome}</td><td>${u.usuario_login}</td><td>${u.codigo_acesso}</td>
+                <td><button onclick="excluir('${u.usuario_login}')" style="color:red">Excluir</button></td></tr>`;
+            });
+        }
+
+        async function carregarLogs() {
+            const res = await fetch('/api/admin/status_realtime');
+            const data = await res.json();
+            const tbody = document.getElementById('listaLogs');
+            tbody.innerHTML = '';
+            data.forEach(l => {
+                tbody.innerHTML += `<tr><td>${l.nome}</td><td>${l.hora}</td><td>${l.portaria}</td></tr>`;
+            });
+        }
+
+        async function salvarUsuario() {
+            const payload = {
+                nome: document.getElementById('nome').value,
+                sobrenome: document.getElementById('sobrenome').value,
+                usuario_login: document.getElementById('usuario_login').value,
+                codigo_acesso: document.getElementById('codigo_acesso').value,
+                empresa: document.getElementById('empresa').value,
+                sede: document.getElementById('sede').value
+            };
+            await fetch('/api/usuarios/salvar', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload)
+            });
+            alert("Salvo!");
+            listarUsuarios();
+        }
+
+        async function excluir(login) {
+            if(confirm("Excluir?")) {
+                await fetch(`/api/usuarios/excluir/${login}`, { method: 'DELETE' });
+                listarUsuarios();
+            }
+        }
+
+        function exportar(fmt) {
+            const hoje = new Date().toISOString().split('T')[0];
+            window.open(`/api/admin/exportar/${fmt}?inicio=${hoje}&fim=${hoje}`);
+        }
+
+        setInterval(carregarLogs, 5000);
+        listarUsuarios();
+        carregarLogs();
+    </script>
+</body>
+</html>
