@@ -12,11 +12,12 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet
 
-# --- CORREÇÃO DEFINITIVA DE CAMINHOS (TEMPLATES) ---
+# --- CORREÇÃO DE CAMINHO PARA HOSPEDAGEM ---
+# Força o Flask a encontrar a pasta templates no local correto
 base_dir = os.path.abspath(os.path.dirname(__file__))
-# Tenta encontrar a pasta templates no mesmo nível ou um nível acima
 template_dir = os.path.join(base_dir, 'templates')
 if not os.path.exists(template_dir):
+    # Se estiver dentro de /api/, sobe um nível para achar a pasta /templates
     template_dir = os.path.abspath(os.path.join(base_dir, '..', 'templates'))
 
 app = Flask(__name__, template_folder=template_dir)
@@ -38,7 +39,7 @@ def admin_page():
 @app.route('/api/login', methods=['POST'])
 def api_login():
     data = request.json
-    if data.get('user', '').lower() == 'admin' and data.get('password') == ADMIN_PASS:
+    if data.get('user', '').lower() == "admin" and data.get('password') == ADMIN_PASS:
         resp = make_response(jsonify({"status": "ok"}))
         resp.set_cookie('auth_admin', ADMIN_PASS)
         return resp
@@ -49,14 +50,13 @@ def status_realtime():
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
     cur.execute("""
-        SELECT u.nome, u.sobrenome, u.empresa, l.portaria, l.data_hora 
+        SELECT u.nome, u.sobrenome, u.empresa, l.portaria, 
+               TO_CHAR(l.data_hora, 'HH24:MI') as hora
         FROM logs l 
         JOIN usuarios u ON l.colaborador = u.usuario_login 
         ORDER BY l.data_hora DESC LIMIT 20
     """)
     logs = cur.fetchall()
-    for l in logs:
-        l['hora'] = l['data_hora'].strftime('%H:%M')
     conn.close()
     return jsonify(logs)
 
@@ -67,7 +67,6 @@ def exportar(formato):
     turno = request.args.get('turno', 'Todos')
     
     conn = get_db_connection()
-    # Query ajustada para evitar KeyError: usa 'turno' e formatação SQL
     query = """
         SELECT 
             u.nome || ' ' || u.sobrenome as "Colaborador",
