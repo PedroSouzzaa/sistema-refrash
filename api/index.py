@@ -12,27 +12,31 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet
 
-# --- CONFIGURAÇÃO DE CAMINHO ABSOLUTO ---
 base_dir = os.path.dirname(os.path.abspath(__file__))
 template_path = os.path.join(base_dir, 'templates')
 
 app = Flask(__name__, template_folder=template_path)
-
 ADMIN_PASS = os.environ.get('ADMIN_PASSWORD', 'admin123')
 
 def get_db_connection():
     return psycopg2.connect(os.environ.get('POSTGRES_URL'))
 
+# --- ROTAS DE NAVEGAÇÃO ---
 @app.route('/')
 def index(): 
     return render_template('index.html')
+
+@app.route('/login')
+def login_page():
+    return render_template('login.html')
 
 @app.route('/admin')
 def admin_page():
     if request.cookies.get('auth_admin') != ADMIN_PASS:
         return render_template('login.html')
-    return render_template('admin.html')
+    return render_template('admin (1).html')
 
+# --- API DE AUTENTICAÇÃO ---
 @app.route('/api/login', methods=['POST'])
 def api_login():
     data = request.json
@@ -42,9 +46,8 @@ def api_login():
         return resp
     return jsonify({"status": "erro"}), 401
 
-# --- ROTAS DE GESTÃO DE USUÁRIOS (ADICIONADAS PARA CORRIGIR O ERRO) ---
-
-@app.route('/admin/usuarios/listar')
+# --- API DE GESTÃO DE USUÁRIOS ---
+@app.route('/api/usuarios/listar')
 def api_listar_usuarios():
     if request.cookies.get('auth_admin') != ADMIN_PASS: return jsonify([]), 401
     conn = get_db_connection()
@@ -54,14 +57,13 @@ def api_listar_usuarios():
     conn.close()
     return jsonify(usuarios)
 
-@app.route('/admin/usuarios/salvar', methods=['POST'])
+@app.route('/api/usuarios/salvar', methods=['POST'])
 def api_salvar_usuario():
     if request.cookies.get('auth_admin') != ADMIN_PASS: return jsonify({"status": "erro"}), 401
     data = request.json
     conn = get_db_connection()
     cur = conn.cursor()
     try:
-        # Nota: 'codigo_acesso' deve ser a coluna no seu banco Postgres
         cur.execute("""
             INSERT INTO usuarios (nome, sobrenome, usuario_login, codigo_acesso, empresa, sede)
             VALUES (%s, %s, %s, %s, %s, %s)
@@ -72,12 +74,11 @@ def api_salvar_usuario():
         conn.commit()
         return jsonify({"status": "ok"})
     except Exception as e:
-        print(f"Erro ao salvar: {e}")
         return jsonify({"status": "erro", "msg": str(e)}), 500
     finally:
         conn.close()
 
-@app.route('/admin/usuarios/excluir/<login>', methods=['DELETE'])
+@app.route('/api/usuarios/excluir/<login>', methods=['DELETE'])
 def api_excluir_usuario(login):
     if request.cookies.get('auth_admin') != ADMIN_PASS: return jsonify({"status": "erro"}), 401
     conn = get_db_connection()
@@ -87,10 +88,37 @@ def api_excluir_usuario(login):
     conn.close()
     return jsonify({"status": "ok"})
 
-# --- MONITORAMENTO E EXPORTAÇÃO ---
+# --- API DO TOTEM (VALIDAÇÃO) ---
+@app.route('/api/colaborador/validar', methods=['POST'])
+def api_validar():
+    data = request.json
+    usuario = data.get('usuario')
+    codigo = data.get('codigo')
+    
+    conn = get_db_connection()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    
+    # Verifica se usuário existe e o código bate
+    cur.execute("SELECT * FROM usuarios WHERE usuario_login = %s AND codigo_acesso = %s", (usuario, codigo))
+    user = cur.fetchone()
+    
+    if user:
+        # Registra o Log
+        cur.execute("""
+            INSERT INTO logs (colaborador, portaria, turno, data_hora)
+            VALUES (%s, %s, %s, NOW())
+        """, (usuario, data.get('portaria'), data.get('turno')))
+        conn.commit()
+        conn.close()
+        return jsonify({"status": "ok", "msg": f"Check-in realizado: {user['nome']}!"})
+    
+    conn.close()
+    return jsonify({"status": "erro", "msg": "Usuário ou Código incorretos!"}), 401
 
-@app.route('/admin/status_realtime')
+# --- MONITORAMENTO E RELATÓRIOS ---
+@app.route('/api/admin/status_realtime')
 def status_realtime():
+    if request.cookies.get('auth_admin') != ADMIN_PASS: return jsonify([]), 401
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
     cur.execute("""
@@ -104,10 +132,43 @@ def status_realtime():
     conn.close()
     return jsonify(logs)
 
-@app.route('/admin/exportar/<formato>')
+@app.route('/api/admin/exportar/<formato>')
 def exportar(formato):
-    # ... (mantenha sua lógica de exportação atual do index.py)
-    return "Lógica de exportação" # Simplificado para o exemplo
+    if request.cookies.get('auth_admin') != ADMIN_PASS: return "Acesso negado", 401
+    inicio = request.args.get('inicio')
+    fim = request.args.get('fim')
+    
+    conn = get_db_connection()
+    query = """
+        SELECT u.nome || ' ' || u.sobrenome as "Colaborador", u.empresa as "Empresa",
+               l.portaria as "Portaria", l.turno as "Turno", 
+               TO_CHAR(l.data_hora, 'DD/MM/YYYY HH24:MI') as "Data_Hora"
+        FROM logs l JOIN usuarios u ON l.colaborador = u.usuario_login 
+        WHERE l.data_hora::date BETWEEN %s AND %s
+        ORDER BY l.data_hora DESC
+    """
+    df = pd.read_sql(query, conn, params=[inicio, fim])
+    conn.close()
+
+    output = io.BytesIO()
+    if formato == 'excel':
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            df.to_excel(writer, index=False)
+        resp = make_response(output.getvalue())
+        resp.headers["Content-Disposition"] = "attachment; filename=relatorio.xlsx"
+        resp.headers["Content-type"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        return resp
+    
+    # PDF
+    doc = SimpleDocTemplate(output, pagesize=A4)
+    elements = [Paragraph("Relatório NBL LOG", getSampleStyleSheet()['Title']), Spacer(1, 12)]
+    t = Table([df.columns.to_list()] + df.values.tolist())
+    t.setStyle(TableStyle([('BACKGROUND', (0,0), (-1,0), colors.HexColor('#002855')), ('TEXTCOLOR',(0,0),(-1,0),colors.whitesmoke), ('GRID',(0,0),(-1,-1),0.5,colors.grey)]))
+    elements.append(t)
+    doc.build(elements)
+    resp = make_response(output.getvalue())
+    resp.headers["Content-type"] = "application/pdf"
+    return resp
 
 if __name__ == '__main__':
     app.run(debug=True)
