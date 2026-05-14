@@ -36,6 +36,10 @@
         .btn-delete { background: var(--red); }
         
         h3 { margin-top: 0; text-transform: uppercase; font-size: 16px; border-left: 4px solid var(--orange); padding-left: 10px; }
+    
+        .btn-export-pdf { background: #e74c3c; color: white; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; font-weight: bold; display: flex; align-items: center; gap: 8px; }
+        .btn-export-excel { background: #27ae60; color: white; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; font-weight: bold; display: flex; align-items: center; gap: 8px; }
+        .action-group { display: flex; gap: 10px; align-items: center; }
     </style>
 </head>
 <body>
@@ -86,7 +90,17 @@
         <div class="card">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                 <h3 style="border-color: var(--red);">Monitoramento de Batidas (Real)</h3>
-                <button onclick="enviarWhatsapp()" class="btn-whatsapp">
+                <div class="action-group">
+                    <button onclick="exportar('pdf')" class="btn-export-pdf">
+                        <i class="fas fa-file-pdf"></i> PDF
+                    </button>
+                    <button onclick="exportar('excel')" class="btn-export-excel">
+                        <i class="fas fa-file-excel"></i> EXCEL
+                    </button>
+                    <button onclick="enviarWhatsapp()" class="btn-whatsapp">
+                        <i class="fab fa-whatsapp"></i> WHATSAPP
+                    </button>
+                </div>
                     <i class="fab fa-whatsapp"></i> ENVIAR RELATÓRIO DO TURNO
                 </button>
             </div>
