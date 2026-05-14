@@ -14,32 +14,34 @@
         
         .card { background: white; border-radius: 12px; padding: 20px; margin-bottom: 25px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
         
+        /* Grid de Formulário */
         .grid-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
         .form-group { display: flex; flex-direction: column; }
         .form-group label { font-size: 12px; font-weight: bold; margin-bottom: 5px; color: var(--blue); }
         .form-group input { padding: 10px; border: 1px solid #ddd; border-radius: 6px; outline: none; }
-        .form-group input:focus { border-color: var(--orange); }
         
-        .btn-save { background: var(--orange); color: white; border: none; padding: 12px 25px; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.3s; }
-        .btn-save:hover { background: #d68100; }
+        /* Botões de Ação Superior */
+        .header-flex { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .action-group { display: flex; gap: 8px; }
 
+        .btn-action { border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; font-weight: bold; display: flex; align-items: center; gap: 8px; color: white; transition: 0.2s; font-size: 13px; }
+        .btn-action:hover { opacity: 0.9; transform: translateY(-1px); }
+        
+        .btn-pdf { background: #e74c3c; }
+        .btn-excel { background: #27ae60; }
+        .btn-whatsapp { background: #25d366; }
+        .btn-save { background: var(--orange); padding: 12px 25px; }
+
+        /* Tabelas */
         .monitor-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
         th { text-align: left; background: #f8f9fb; padding: 12px; font-size: 11px; color: var(--blue); border-bottom: 2px solid #eee; }
         td { padding: 12px; border-bottom: 1px solid #eee; font-size: 12px; }
         
         .status-ok { color: var(--success); font-weight: bold; font-size: 10px; }
-        .btn-whatsapp { background: #25d366; color: white; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; font-weight: bold; display: flex; align-items: center; gap: 8px; }
+        .action-btn-small { border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; color: white; margin-right: 5px; }
         
-        .action-btn { border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; color: white; margin-right: 5px; }
-        .btn-edit { background: #3498db; }
-        .btn-delete { background: var(--red); }
-        
-        h3 { margin-top: 0; text-transform: uppercase; font-size: 16px; border-left: 4px solid var(--orange); padding-left: 10px; }
-    
-        .btn-export-pdf { background: #e74c3c; color: white; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; font-weight: bold; display: flex; align-items: center; gap: 8px; }
-        .btn-export-excel { background: #27ae60; color: white; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; font-weight: bold; display: flex; align-items: center; gap: 8px; }
-        .action-group { display: flex; gap: 10px; align-items: center; }
+        h3 { margin-top: 0; text-transform: uppercase; font-size: 15px; border-left: 4px solid var(--orange); padding-left: 10px; color: var(--blue); }
     </style>
 </head>
 <body>
@@ -53,69 +55,50 @@
     </div>
 
     <div class="main">
-        <div class="card" id="cardCadastro">
+        <div class="card">
             <h3 id="formTitle">Cadastrar Novo Colaborador</h3>
             <div class="grid-form">
-                <div class="form-group">
-                    <label>Nome</label>
-                    <input type="text" id="cad_nome" placeholder="Ex: João">
-                </div>
-                <div class="form-group">
-                    <label>Sobrenome</label>
-                    <input type="text" id="cad_sobrenome" placeholder="Ex: Silva">
-                </div>
-                <div class="form-group">
-                    <label>ID de Usuário (Login)</label>
-                    <input type="text" id="cad_usuario" placeholder="Ex: joao.silva">
-                </div>
-                <div class="form-group">
-                    <label>Código Único (Senha Totem)</label>
-                    <input type="password" id="cad_codigo" placeholder="Ex: 1234">
-                </div>
-                <div class="form-group">
-                    <label>Empresa</label>
-                    <input type="text" id="cad_empresa" placeholder="Ex: NBL LOG">
-                </div>
-                <div class="form-group">
-                    <label>Sede / Filial</label>
-                    <input type="text" id="cad_sede" placeholder="Ex: Matriz Pará">
-                </div>
+                <div class="form-group"><label>Nome</label><input type="text" id="cad_nome"></div>
+                <div class="form-group"><label>Sobrenome</label><input type="text" id="cad_sobrenome"></div>
+                <div class="form-group"><label>ID (Login)</label><input type="text" id="cad_usuario"></div>
+                <div class="form-group"><label>Código Único</label><input type="password" id="cad_codigo"></div>
+                <div class="form-group"><label>Empresa</label><input type="text" id="cad_empresa"></div>
+                <div class="form-group"><label>Sede / Filial</label><input type="text" id="cad_sede"></div>
             </div>
-            <button onclick="salvarUsuario()" class="btn-save" id="btnSalvar">
+            <button onclick="salvarUsuario()" class="btn-action btn-save" id="btnSalvar">
                 <i class="fas fa-user-plus"></i> SALVAR COLABORADOR
             </button>
-            <button onclick="limparFormulario()" id="btnCancelar" style="display:none; background:#95a5a6; color:white; border:none; padding:12px; border-radius:6px; cursor:pointer; font-weight:bold;">CANCELAR</button>
+            <button onclick="limparFormulario()" id="btnCancelar" style="display:none; margin-top:10px; background:#95a5a6; border:none; color:white; padding:10px; border-radius:6px; cursor:pointer;">CANCELAR EDIÇÃO</button>
         </div>
 
         <div class="card">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <div class="header-flex">
                 <h3 style="border-color: var(--red);">Monitoramento de Batidas (Real)</h3>
                 <div class="action-group">
-                    <button onclick="exportar('pdf')" class="btn-export-pdf">
+                    <button onclick="exportar('pdf')" class="btn-action btn-pdf">
                         <i class="fas fa-file-pdf"></i> PDF
                     </button>
-                    <button onclick="exportar('excel')" class="btn-export-excel">
+                    <button onclick="exportar('excel')" class="btn-action btn-excel">
                         <i class="fas fa-file-excel"></i> EXCEL
                     </button>
-                    <button onclick="enviarWhatsapp()" class="btn-whatsapp">
+                    <button onclick="enviarWhatsapp()" class="btn-action btn-whatsapp">
                         <i class="fab fa-whatsapp"></i> WHATSAPP
                     </button>
                 </div>
-                    <i class="fab fa-whatsapp"></i> ENVIAR RELATÓRIO DO TURNO
-                </button>
             </div>
+            
             <div class="monitor-grid">
                 <div>
                     <h4>PORTARIA P1</h4>
-                    <table>
-                        <thead><tr><th>Colaborador / Empresa</th><th>Data/Hora</th></tr></thead>
+                    <table id="tableP1">
+                        <thead><tr><th>Colaborador</th><th>Data/Hora</th></tr></thead>
                         <tbody id="bodyP1"></tbody>
                     </table>
                 </div>
                 <div>
                     <h4>PORTARIA P2</h4>
-                    <table>
-                        <thead><tr><th>Colaborador / Empresa</th><th>Data/Hora</th></tr></thead>
+                    <table id="tableP2">
+                        <thead><tr><th>Colaborador</th><th>Data/Hora</th></tr></thead>
                         <tbody id="bodyP2"></tbody>
                     </table>
                 </div>
@@ -123,15 +106,10 @@
         </div>
 
         <div class="card">
-            <h3 style="border-color: #3498db;">Gestão de Colaboradores Cadastrados</h3>
-            <table id="tabelaGestao">
+            <h3 style="border-color: #3498db;">Gestão de Colaboradores</h3>
+            <table>
                 <thead>
-                    <tr>
-                        <th>Nome Completo</th>
-                        <th>ID / Login</th>
-                        <th>Empresa / Sede</th>
-                        <th>Ações</th>
-                    </tr>
+                    <tr><th>Nome Completo</th><th>ID / Login</th><th>Empresa</th><th>Ações</th></tr>
                 </thead>
                 <tbody id="listaUsuarios"></tbody>
             </table>
@@ -139,7 +117,7 @@
     </div>
 
     <script>
-        // Função para cadastrar ou editar usuário
+        // Funções de API
         async function salvarUsuario() {
             const data = {
                 nome: document.getElementById('cad_nome').value.trim(),
@@ -149,120 +127,86 @@
                 empresa: document.getElementById('cad_empresa').value.trim(),
                 sede: document.getElementById('cad_sede').value.trim()
             };
-
-            if(!data.usuario_login || !data.codigo_atual || !data.nome) return alert("Preencha os campos obrigatórios.");
-
-            try {
-                const res = await fetch('/admin/usuarios/salvar', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(data)
-                });
-
-                if(res.ok) {
-                    alert("Dados salvos com sucesso!");
-                    limparFormulario();
-                    listarUsuarios();
-                }
-            } catch (e) { alert("Erro de conexão."); }
+            if(!data.usuario_login || !data.codigo_atual) return alert("Preencha os campos obrigatórios.");
+            
+            const res = await fetch('/admin/usuarios/salvar', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            });
+            if(res.ok) { alert("Sucesso!"); limparFormulario(); listarUsuarios(); }
         }
 
-        // Listar usuários para a gestão
         async function listarUsuarios() {
-            try {
-                const res = await fetch('/admin/usuarios/listar');
-                const users = await res.json();
-                const container = document.getElementById('listaUsuarios');
-                container.innerHTML = users.map(u => `
-                    <tr>
-                        <td>${u.nome} ${u.sobrenome}</td>
-                        <td><code>${u.usuario_login}</code></td>
-                        <td>${u.empresa} (${u.sede})</td>
-                        <td>
-                            <button class="action-btn btn-edit" onclick='prepararEdicao(${JSON.stringify(u)})' title="Editar">
-                                <i class="fas fa-edit"></i>
-                            </button>
-                            <button class="action-btn btn-delete" onclick="excluirUsuario('${u.usuario_login}')" title="Excluir">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </td>
-                    </tr>
-                `).join('');
-            } catch (e) { console.error(e); }
+            const res = await fetch('/admin/usuarios/listar');
+            const users = await res.json();
+            document.getElementById('listaUsuarios').innerHTML = users.map(u => `
+                <tr>
+                    <td>${u.nome} ${u.sobrenome}</td>
+                    <td><code>${u.usuario_login}</code></td>
+                    <td>${u.empresa}</td>
+                    <td>
+                        <button class="action-btn-small" style="background:#3498db" onclick='prepararEdicao(${JSON.stringify(u)})'><i class="fas fa-edit"></i></button>
+                        <button class="action-btn-small" style="background:#e74c3c" onclick="excluirUsuario('${u.usuario_login}')"><i class="fas fa-trash"></i></button>
+                    </td>
+                </tr>
+            `).join('');
         }
 
-        // Preparar formulário para edição
+        async function carregarMonitoramento() {
+            const res = await fetch('/admin/status_realtime');
+            const logs = await res.json();
+            const b1 = document.getElementById('bodyP1'); const b2 = document.getElementById('bodyP2');
+            b1.innerHTML = ''; b2.innerHTML = '';
+            logs.forEach(l => {
+                const tr = `<tr><td><b>${l.nome}</b><br><small>${l.empresa}</small></td><td><span class="status-ok">✅ OK</span><br><small>${l.hora}</small></td></tr>`;
+                if(l.portaria === 'P1') b1.innerHTML += tr; else b2.innerHTML += tr;
+            });
+        }
+
         function prepararEdicao(user) {
             document.getElementById('cad_nome').value = user.nome;
             document.getElementById('cad_sobrenome').value = user.sobrenome;
             document.getElementById('cad_usuario').value = user.usuario_login;
-            document.getElementById('cad_usuario').readOnly = true; // Impede mudar o ID principal na edição
+            document.getElementById('cad_usuario').readOnly = true;
             document.getElementById('cad_codigo').value = user.codigo_atual;
             document.getElementById('cad_empresa').value = user.empresa;
             document.getElementById('cad_sede').value = user.sede;
-
             document.getElementById('formTitle').innerText = "Editar Colaborador";
-            document.getElementById('btnSalvar').innerHTML = '<i class="fas fa-sync"></i> ATUALIZAR DADOS';
-            document.getElementById('btnCancelar').style.display = "inline-block";
-            window.scrollTo({top: 0, behavior: 'smooth'});
+            document.getElementById('btnCancelar').style.display = "block";
+            window.scrollTo(0,0);
         }
 
         function limparFormulario() {
-            document.querySelectorAll('.grid-form input').forEach(i => {
-                i.value = '';
-                i.readOnly = false;
-            });
+            document.querySelectorAll('.grid-form input').forEach(i => { i.value = ''; i.readOnly = false; });
             document.getElementById('formTitle').innerText = "Cadastrar Novo Colaborador";
-            document.getElementById('btnSalvar').innerHTML = '<i class="fas fa-user-plus"></i> SALVAR COLABORADOR';
             document.getElementById('btnCancelar').style.display = "none";
         }
 
         async function excluirUsuario(login) {
-            if(!confirm(`Tem certeza que deseja excluir permanentemente o usuário ${login}?`)) return;
-            try {
-                const res = await fetch(`/admin/usuarios/excluir/${login}`, { method: 'DELETE' });
-                if(res.ok) {
-                    alert("Usuário removido.");
-                    listarUsuarios();
-                    carregarMonitoramento();
-                }
-            } catch (e) { alert("Erro ao excluir."); }
+            if(confirm("Excluir usuário?")) {
+                await fetch(`/admin/usuarios/excluir/${login}`, { method: 'DELETE' });
+                listarUsuarios();
+            }
         }
 
-        // Monitoramento em Tempo Real
-        async function carregarMonitoramento() {
-            try {
-                const res = await fetch('/admin/status_realtime');
-                const logs = await res.json();
-                const b1 = document.getElementById('bodyP1');
-                const b2 = document.getElementById('bodyP2');
-                b1.innerHTML = ''; b2.innerHTML = '';
-
-                logs.forEach(l => {
-                    const tr = `<tr>
-                        <td><b>${l.nome} ${l.sobrenome}</b><br><small>${l.empresa}</small></td>
-                        <td><span class="status-ok">✅ VERIFICADO</span><br><small>${l.data} ${l.hora}</small></td>
-                    </tr>`;
-                    if(l.portaria === 'P1') b1.innerHTML += tr;
-                    else b2.innerHTML += tr;
-                });
-            } catch (e) { console.error(e); }
+        function exportar(fmt) {
+            const hoje = new Date().toISOString().split('T')[0];
+            window.open(`/admin/exportar/${fmt}?inicio=${hoje}&fim=${hoje}&turno=Todos`, '_blank');
         }
 
         function enviarWhatsapp() {
-            const numero = "55919XXXXXXXX"; // Configure seu número
-            let msg = "*📋 RELATÓRIO DE BATIDAS - NBL LOG*\n\n";
-            msg += "*PORTARIA P1*\n";
-            document.querySelectorAll('#bodyP1 tr').forEach(row => {
-                msg += `✅ ${row.querySelector('b').innerText} (${row.querySelectorAll('small')[0].innerText})\n`;
+            const fone = "55919XXXXXXXX"; // Configure aqui
+            let msg = "*📊 RELATÓRIO NBL LOG*\n\n";
+            document.querySelectorAll('#bodyP1 tr, #bodyP2 tr').forEach(r => {
+                msg += `✅ ${r.querySelector('b').innerText} (${r.querySelectorAll('small')[1].innerText})\n`;
             });
-            window.open(`https://api.whatsapp.com/send?phone=${numero}&text=${encodeURIComponent(msg)}`, '_blank');
+            window.open(`https://api.whatsapp.com/send?phone=${fone}&text=${encodeURIComponent(msg)}`, '_blank');
         }
 
-        // Inicialização
         listarUsuarios();
         carregarMonitoramento();
-        setInterval(carregarMonitoramento, 3600000);
+        setInterval(carregarMonitoramento, 30000);
     </script>
 </body>
 </html>
