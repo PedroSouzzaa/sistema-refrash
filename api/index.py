@@ -12,18 +12,29 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet
 
-app = Flask(__name__, template_folder='templates')
+# --- CORREÇÃO DE CAMINHO PARA HOSPEDAGEM ---
+# Isso garante que o Flask encontre a pasta templates independente de onde for instalado
+base_dir = os.path.abspath(os.path.dirname(__file__))
+template_dir = os.path.join(base_dir, 'templates')
+if not os.path.exists(template_dir):
+    # Caso o arquivo esteja dentro de /api/ ou outra subpasta
+    template_dir = os.path.abspath(os.path.join(base_dir, '..', 'templates'))
+
+app = Flask(__name__, template_folder=template_dir)
 ADMIN_PASS = os.environ.get('ADMIN_PASSWORD', 'admin123')
 
 def get_db_connection():
     return psycopg2.connect(os.environ.get('POSTGRES_URL'))
 
 @app.route('/')
-def index(): return render_template('index.html')
+def index(): 
+    return render_template('index.html')
 
 @app.route('/admin')
 def admin_page():
-    if request.cookies.get('auth_admin') != ADMIN_PASS: return render_template('login.html')
+    # Se não houver cookie de autenticação, manda para o login
+    if request.cookies.get('auth_admin') != ADMIN_PASS:
+        return render_template('login.html')
     return render_template('admin.html')
 
 @app.route('/admin/status_realtime')
@@ -31,13 +42,14 @@ def status_realtime():
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
     cur.execute("""
-        SELECT u.nome, u.sobrenome, u.empresa, l.portaria, l.data_hora as hora 
+        SELECT u.nome, u.sobrenome, u.empresa, l.portaria, l.data_hora 
         FROM logs l 
         JOIN usuarios u ON l.colaborador = u.usuario_login 
         ORDER BY l.data_hora DESC LIMIT 20
     """)
     logs = cur.fetchall()
-    for l in logs: l['hora'] = l['hora'].strftime('%H:%M')
+    for l in logs:
+        l['hora'] = l['data_hora'].strftime('%H:%M')
     conn.close()
     return jsonify(logs)
 
@@ -79,7 +91,15 @@ def excluir_usuario(login):
     conn.close()
     return jsonify({"status": "ok"})
 
-# Mantenha suas rotas de exportar e login conforme o original...
+# Rota de login simplificada para funcionar com o cookie esperado
+@app.route('/api/login', methods=['POST'])
+def api_login():
+    data = request.json
+    if data.get('user') == 'admin' and data.get('password') == ADMIN_PASS:
+        resp = make_response(jsonify({"status": "ok"}))
+        resp.set_cookie('auth_admin', ADMIN_PASS)
+        return resp
+    return jsonify({"status": "erro"}), 401
 
 if __name__ == '__main__':
     app.run(debug=True)
