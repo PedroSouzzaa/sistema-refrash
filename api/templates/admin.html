@@ -5,109 +5,283 @@
     <title>Admin | NBL LOG</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        :root { --blue: #002855; --bg: #f0f3f6; }
-        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; display: flex; }
-        .sidebar { width: 250px; background: var(--blue); color: white; height: 100vh; position: fixed; padding: 20px; }
-        .main { margin-left: 250px; padding: 30px; width: 100%; }
-        .card { background: white; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
-        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th, td { text-align: left; padding: 12px; border-bottom: 1px solid #eee; }
-        input { padding: 10px; border: 1px solid #ddd; border-radius: 5px; width: 100%; margin-bottom: 10px; box-sizing: border-box; }
-        .btn { padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
-        .btn-blue { background: var(--blue); color: white; }
+        :root { 
+            --blue: #002855; 
+            --bg: #f0f3f6; 
+            --blue-hover: #4a7ab5;
+        }
+        
+        body { 
+            font-family: 'Segoe UI', sans-serif; 
+            background: var(--bg); 
+            margin: 0; 
+            display: flex; 
+        }
+        
+        /* --- SIDEBAR --- */
+        .sidebar { 
+            width: 250px; 
+            background: var(--blue); 
+            color: white; 
+            height: 100vh; 
+            position: fixed; 
+            padding: 20px; 
+            box-sizing: border-box;
+        }
+        .sidebar h2 { margin-top: 0; margin-bottom: 5px; }
+        .sidebar p { margin-top: 0; font-size: 14px; opacity: 0.8; }
+        .sidebar hr { border: 0; border-top: 1px solid rgba(255,255,255,0.2); margin: 20px 0; }
+        
+        .btn-nav { 
+            background: rgba(255,255,255,0.1); 
+            color: white; 
+            border: none; 
+            width: 100%; 
+            padding: 12px 15px; 
+            text-align: left; 
+            margin-bottom: 10px; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            font-size: 15px;
+            transition: background 0.3s;
+        }
+        .btn-nav i { width: 25px; text-align: center; margin-right: 5px; }
+        .btn-nav:hover { background: rgba(255,255,255,0.2); }
+        .btn-nav.active { background: var(--blue-hover); font-weight: bold; }
+
+        /* --- MAIN CONTENT --- */
+        .main { 
+            margin-left: 250px; 
+            padding: 30px; 
+            width: calc(100% - 250px); 
+            box-sizing: border-box;
+        }
+        
+        .grid { 
+            display: grid; 
+            grid-template-columns: 1fr 1fr; 
+            gap: 20px; 
+        }
+        
+        .card { 
+            background: white; 
+            border-radius: 12px; 
+            padding: 25px; 
+            margin-bottom: 20px; 
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05); 
+        }
+        .card h3 { margin-top: 0; color: var(--blue); }
+        
+        /* --- FORM & TABLES --- */
+        input { 
+            padding: 12px; 
+            border: 1px solid #ddd; 
+            border-radius: 8px; 
+            width: 100%; 
+            margin-bottom: 12px; 
+            box-sizing: border-box; 
+            font-size: 14px;
+        }
+        
+        table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin-top: 10px; 
+        }
+        th, td { 
+            text-align: left; 
+            padding: 12px; 
+            border-bottom: 1px solid #eee; 
+        }
+        th { background: #f8f9fa; color: var(--blue); }
+        
+        /* --- BUTTONS --- */
+        .btn { 
+            padding: 12px 20px; 
+            border: none; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            font-weight: bold; 
+            transition: opacity 0.3s;
+        }
+        .btn:hover { opacity: 0.9; }
+        .btn-blue { background: var(--blue); color: white; width: 100%; margin-top: 10px; }
+        .btn-green { background: #27ae60; color: white; }
+        .btn-action { color: #E31E24; cursor: pointer; background: none; border: none; font-weight: bold; }
+        
+        /* --- UTILS --- */
+        .flex-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .flex-header h3 { margin: 0; }
     </style>
 </head>
 <body>
+
     <div class="sidebar">
         <h2>NBL ADMIN</h2>
-        <p>Monitoramento e Gestão</p>
-        <button class="btn" style="width:100%; margin-top:20px;" onclick="exportar('excel')">Exportar Excel</button>
-        <button class="btn" style="width:100%; margin-top:10px;" onclick="location.href='/'">Sair</button>
+        <p>Gestão de Acessos</p>
+        <hr>
+        <button class="btn-nav active" onclick="location.href='/admin'">
+            <i class="fas fa-users"></i> Gestão de Usuários
+        </button>
+        <button class="btn-nav" onclick="location.href='/admin/monitoramento'">
+            <i class="fas fa-desktop"></i> Monitoramento
+        </button>
+        <button class="btn-nav" onclick="location.href='/'" style="margin-top: 20px;">
+            <i class="fas fa-sign-out-alt"></i> Sair
+        </button>
     </div>
 
     <div class="main">
         <div class="grid">
             <div class="card">
-                <h3>Cadastrar Colaborador</h3>
+                <h3><i class="fas fa-user-plus"></i> Cadastrar Colaborador</h3>
                 <input type="text" id="nome" placeholder="Nome">
                 <input type="text" id="sobrenome" placeholder="Sobrenome">
                 <input type="text" id="usuario_login" placeholder="Login (Matrícula)">
                 <input type="text" id="codigo_acesso" placeholder="Código Numérico">
                 <input type="text" id="empresa" placeholder="Empresa">
                 <input type="text" id="sede" placeholder="Sede">
-                <button class="btn btn-blue" onclick="salvarUsuario()">SALVAR</button>
+                <button class="btn btn-blue" onclick="salvarUsuario()">SALVAR COLABORADOR</button>
             </div>
+            
             <div class="card">
-                <h3>Últimos Acessos</h3>
+                <h3><i class="fas fa-history"></i> Últimos Acessos</h3>
                 <table>
-                    <thead><tr><th>Colaborador</th><th>Hora</th><th>Portaria</th></tr></thead>
-                    <tbody id="listaLogs"></tbody>
+                    <thead>
+                        <tr>
+                            <th>Colaborador</th>
+                            <th>Hora</th>
+                            <th>Portaria</th>
+                        </tr>
+                    </thead>
+                    <tbody id="listaLogs">
+                        </tbody>
                 </table>
             </div>
         </div>
 
         <div class="card">
-            <h3>Lista de Colaboradores</h3>
+            <div class="flex-header">
+                <h3><i class="fas fa-list"></i> Lista de Colaboradores</h3>
+                <button class="btn btn-green" onclick="exportar('excel')">
+                    <i class="fas fa-file-excel"></i> Exportar Relatório Geral
+                </button>
+            </div>
             <table>
-                <thead><tr><th>Nome</th><th>Login</th><th>Cód. Acesso</th><th>Ações</th></tr></thead>
-                <tbody id="tabelaUsuarios"></tbody>
+                <thead>
+                    <tr>
+                        <th>Nome Completo</th>
+                        <th>Login</th>
+                        <th>Cód. Acesso</th>
+                        <th>Empresa</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody id="tabelaUsuarios">
+                    </tbody>
             </table>
         </div>
     </div>
 
     <script>
         async function listarUsuarios() {
-            const res = await fetch('/api/usuarios/listar');
-            const data = await res.json();
-            const tbody = document.getElementById('tabelaUsuarios');
-            tbody.innerHTML = '';
-            data.forEach(u => {
-                tbody.innerHTML += `<tr><td>${u.nome} ${u.sobrenome}</td><td>${u.usuario_login}</td><td>${u.codigo_acesso}</td>
-                <td><button onclick="excluir('${u.usuario_login}')" style="color:red">Excluir</button></td></tr>`;
-            });
+            try {
+                const res = await fetch('/api/usuarios/listar');
+                const data = await res.json();
+                const tbody = document.getElementById('tabelaUsuarios');
+                tbody.innerHTML = '';
+                data.forEach(u => {
+                    tbody.innerHTML += `
+                        <tr>
+                            <td>${u.nome} ${u.sobrenome}</td>
+                            <td>${u.usuario_login}</td>
+                            <td><strong>${u.codigo_acesso}</strong></td>
+                            <td>${u.empresa}</td>
+                            <td>
+                                <button class="btn-action" onclick="excluir('${u.usuario_login}')">
+                                    <i class="fas fa-trash"></i> Excluir
+                                </button>
+                            </td>
+                        </tr>`;
+                });
+            } catch (e) {
+                console.error("Erro ao listar usuários", e);
+            }
         }
 
         async function carregarLogs() {
-            const res = await fetch('/api/admin/status_realtime');
-            const data = await res.json();
-            const tbody = document.getElementById('listaLogs');
-            tbody.innerHTML = '';
-            data.forEach(l => {
-                tbody.innerHTML += `<tr><td>${l.nome}</td><td>${l.hora}</td><td>${l.portaria}</td></tr>`;
-            });
+            try {
+                const res = await fetch('/api/admin/status_realtime');
+                const data = await res.json();
+                const tbody = document.getElementById('listaLogs');
+                tbody.innerHTML = '';
+                
+                // Pega apenas os 5 últimos para não estourar o card visualmente
+                const ultimosLogs = data.slice(0, 5); 
+                
+                ultimosLogs.forEach(l => {
+                    tbody.innerHTML += `
+                        <tr>
+                            <td>${l.nome}</td>
+                            <td>${l.hora}</td>
+                            <td>${l.portaria}</td>
+                        </tr>`;
+                });
+            } catch (e) {
+                console.error("Erro ao carregar logs", e);
+            }
         }
 
         async function salvarUsuario() {
             const payload = {
-                nome: document.getElementById('nome').value,
-                sobrenome: document.getElementById('sobrenome').value,
-                usuario_login: document.getElementById('usuario_login').value,
-                codigo_acesso: document.getElementById('codigo_acesso').value,
-                empresa: document.getElementById('empresa').value,
-                sede: document.getElementById('sede').value
+                nome: document.getElementById('nome').value.trim(),
+                sobrenome: document.getElementById('sobrenome').value.trim(),
+                usuario_login: document.getElementById('usuario_login').value.trim(),
+                codigo_acesso: document.getElementById('codigo_acesso').value.trim(),
+                empresa: document.getElementById('empresa').value.trim(),
+                sede: document.getElementById('sede').value.trim()
             };
-            await fetch('/api/usuarios/salvar', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(payload)
-            });
-            alert("Salvo!");
-            listarUsuarios();
+
+            if (!payload.nome || !payload.usuario_login || !payload.codigo_acesso) {
+                return alert("Por favor, preencha pelo menos Nome, Login e Código de Acesso.");
+            }
+
+            try {
+                await fetch('/api/usuarios/salvar', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload)
+                });
+                
+                alert("Colaborador salvo com sucesso!");
+                
+                // Limpa os campos após salvar
+                document.querySelectorAll('.card input').forEach(input => input.value = '');
+                
+                listarUsuarios();
+            } catch (e) {
+                alert("Erro ao salvar colaborador.");
+                console.error(e);
+            }
         }
 
         async function excluir(login) {
-            if(confirm("Excluir?")) {
-                await fetch(`/api/usuarios/excluir/${login}`, { method: 'DELETE' });
-                listarUsuarios();
+            if(confirm("Tem certeza que deseja excluir este colaborador?")) {
+                try {
+                    await fetch(`/api/usuarios/excluir/${login}`, { method: 'DELETE' });
+                    listarUsuarios();
+                } catch (e) {
+                    alert("Erro ao excluir colaborador.");
+                }
             }
         }
 
         function exportar(fmt) {
             const hoje = new Date().toISOString().split('T')[0];
-            window.open(`/api/admin/exportar/${fmt}?inicio=${hoje}&fim=${hoje}`);
+            window.open(`/api/admin/exportar/${fmt}?inicio=${hoje}&fim=${hoje}`, '_blank');
         }
 
+        // Iniciar funções automáticas
         setInterval(carregarLogs, 5000);
         listarUsuarios();
         carregarLogs();
