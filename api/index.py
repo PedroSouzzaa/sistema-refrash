@@ -34,7 +34,7 @@ def login_page():
 def admin_page():
     if request.cookies.get('auth_admin') != ADMIN_PASS:
         return render_template('login.html')
-    return render_template('admin (1).html')
+    return render_template('admin.html')
 
 # --- API DE AUTENTICAÇÃO ---
 @app.route('/api/login', methods=['POST'])
