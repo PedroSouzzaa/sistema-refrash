@@ -12,13 +12,12 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet
 
-# --- CORREÇÃO DE CAMINHO PARA HOSPEDAGEM ---
-# Força o Flask a encontrar a pasta templates no local correto
-base_dir = os.path.abspath(os.path.dirname(__file__))
+# --- CORREÇÃO DEFINITIVA DE CAMINHO ---
+# Pega o local real onde o index.py está rodando
+base_dir = os.path.dirname(os.path.abspath(__file__))
+
+# Define a pasta de templates como sendo a pasta 'templates' que está JUNTO do index.py
 template_dir = os.path.join(base_dir, 'templates')
-if not os.path.exists(template_dir):
-    # Se estiver dentro de /api/, sobe um nível para achar a pasta /templates
-    template_dir = os.path.abspath(os.path.join(base_dir, '..', 'templates'))
 
 app = Flask(__name__, template_folder=template_dir)
 ADMIN_PASS = os.environ.get('ADMIN_PASSWORD', 'admin123')
@@ -26,6 +25,7 @@ ADMIN_PASS = os.environ.get('ADMIN_PASSWORD', 'admin123')
 def get_db_connection():
     return psycopg2.connect(os.environ.get('POSTGRES_URL'))
 
+# --- ROTAS DE NAVEGAÇÃO ---
 @app.route('/')
 def index(): 
     return render_template('index.html')
@@ -41,10 +41,11 @@ def api_login():
     data = request.json
     if data.get('user', '').lower() == "admin" and data.get('password') == ADMIN_PASS:
         resp = make_response(jsonify({"status": "ok"}))
-        resp.set_cookie('auth_admin', ADMIN_PASS)
+        resp.set_cookie('auth_admin', ADMIN_PASS, httponly=True)
         return resp
     return jsonify({"status": "erro"}), 401
 
+# --- MONITORAMENTO EM TEMPO REAL ---
 @app.route('/admin/status_realtime')
 def status_realtime():
     conn = get_db_connection()
@@ -60,6 +61,7 @@ def status_realtime():
     conn.close()
     return jsonify(logs)
 
+# --- EXPORTAÇÃO DE RELATÓRIOS (PDF/EXCEL) ---
 @app.route('/admin/exportar/<formato>')
 def exportar(formato):
     inicio = request.args.get('inicio')
@@ -99,11 +101,12 @@ def exportar(formato):
         resp.headers["Content-type"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         return resp
     
-    # PDF
+    # Geração de PDF
     output = io.BytesIO()
     doc = SimpleDocTemplate(output, pagesize=A4)
     styles = getSampleStyleSheet()
     elements = [Paragraph("Relatório de Batidas - NBL LOG", styles['Title']), Spacer(1, 12)]
+    
     dados_tabela = [df.columns.to_list()] + df.values.tolist()
     t = Table(dados_tabela)
     t.setStyle(TableStyle([
@@ -115,19 +118,11 @@ def exportar(formato):
     ]))
     elements.append(t)
     doc.build(elements)
+    
     resp = make_response(output.getvalue())
     resp.headers["Content-Disposition"] = "attachment; filename=relatorio_nbl.pdf"
     resp.headers["Content-type"] = "application/pdf"
     return resp
-
-@app.route('/admin/usuarios/listar')
-def listar_usuarios():
-    conn = get_db_connection()
-    cur = conn.cursor(cursor_factory=RealDictCursor)
-    cur.execute("SELECT nome, sobrenome, usuario_login, empresa FROM usuarios ORDER BY nome ASC")
-    users = cur.fetchall()
-    conn.close()
-    return jsonify(users)
 
 if __name__ == '__main__':
     app.run(debug=True)
