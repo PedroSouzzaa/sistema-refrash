@@ -1,11 +1,10 @@
 import os
-from flask import Flask, render_template, request, jsonify, make_response
 import psycopg2
+from flask import Flask, render_template, request, jsonify, make_response
 from psycopg2.extras import RealDictCursor
 
-# --- CONFIGURAÇÃO DE CAMINHO ---
+# --- CONFIGURAÇÃO DE CAMINHOS ---
 base_dir = os.path.dirname(os.path.abspath(__file__))
-# Tenta achar a pasta 'templates' dentro de 'api' ou na raiz
 template_path = os.path.join(base_dir, 'templates')
 
 app = Flask(__name__, template_folder=template_path)
@@ -14,7 +13,7 @@ ADMIN_PASS = os.environ.get('ADMIN_PASSWORD', 'admin123')
 def get_db_connection():
     return psycopg2.connect(os.environ.get('POSTGRES_URL'))
 
-# --- ROTAS DE NAVEGAÇÃO ---
+# --- ROTAS DE PÁGINAS (NAVEGAÇÃO) ---
 
 @app.route('/')
 def index(): 
@@ -24,7 +23,6 @@ def index():
 def admin_page():
     if request.cookies.get('auth_admin') != ADMIN_PASS:
         return render_template('login.html')
-    # CORREÇÃO: Nome do arquivo sem o (1)
     return render_template('admin.html')
 
 @app.route('/admin/monitoramento')
@@ -33,7 +31,7 @@ def monitoramento_page():
         return render_template('login.html')
     return render_template('monitoramento.html')
 
-# --- APIs ---
+# --- APIs (DADOS E LÓGICA) ---
 
 @app.route('/api/login', methods=['POST'])
 def api_login():
@@ -43,6 +41,40 @@ def api_login():
         resp.set_cookie('auth_admin', ADMIN_PASS, httponly=True, samesite='Lax')
         return resp
     return jsonify({"status": "erro"}), 401
+
+@app.route('/api/usuarios/listar')
+def api_listar_usuarios():
+    conn = get_db_connection()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    cur.execute("SELECT nome, sobrenome, usuario_login, codigo_acesso, empresa, sede FROM usuarios ORDER BY nome ASC")
+    usuarios = cur.fetchall()
+    conn.close()
+    return jsonify(usuarios)
+
+@app.route('/api/usuarios/salvar', methods=['POST'])
+def api_salvar_usuario():
+    data = request.json
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("""
+        INSERT INTO usuarios (nome, sobrenome, usuario_login, codigo_acesso, empresa, sede)
+        VALUES (%s, %s, %s, %s, %s, %s)
+        ON CONFLICT (usuario_login) DO UPDATE SET
+        nome=EXCLUDED.nome, sobrenome=EXCLUDED.sobrenome, codigo_acesso=EXCLUDED.codigo_acesso, 
+        empresa=EXCLUDED.empresa, sede=EXCLUDED.sede
+    """, (data['nome'], data['sobrenome'], data['usuario_login'], data['codigo_acesso'], data['empresa'], data.get('sede','')))
+    conn.commit()
+    conn.close()
+    return jsonify({"status": "ok"})
+
+@app.route('/api/usuarios/excluir/<login>', methods=['DELETE'])
+def api_excluir_usuario(login):
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM usuarios WHERE usuario_login = %s", (login,))
+    conn.commit()
+    conn.close()
+    return jsonify({"status": "ok"})
 
 @app.route('/api/admin/status_realtime')
 def status_realtime():
@@ -60,7 +92,21 @@ def status_realtime():
     conn.close()
     return jsonify(logs)
 
-# ... (outras APIs de salvar/excluir permanecem iguais)
+@app.route('/colaborador/validar', methods=['POST'])
+def api_validar():
+    data = request.json
+    conn = get_db_connection()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    cur.execute("SELECT nome FROM usuarios WHERE usuario_login = %s AND codigo_acesso = %s", (data['usuario'], data['codigo']))
+    user = cur.fetchone()
+    if user:
+        cur.execute("INSERT INTO logs (colaborador, portaria, turno, data_hora) VALUES (%s, %s, %s, NOW())", 
+                    (data['usuario'], data['portaria'], data['turno']))
+        conn.commit()
+        conn.close()
+        return jsonify({"status": "ok", "msg": f"Sucesso, {user['nome']}!"})
+    conn.close()
+    return jsonify({"status": "erro", "msg": "Dados incorretos"}), 401
 
 if __name__ == '__main__':
     app.run(debug=True)
