@@ -98,28 +98,25 @@
                 turnosAgrupados[turnoNome].push(l);
             });
 
-            // 2. Montar cabeçalho da mensagem
+            // 2. Montar cabeçalho da mensagem (conforme imagem)
             let texto = "*📊 RELATÓRIO DE ACESSOS - NBL LOG*\n";
             texto += "*Data:* " + new Date().toLocaleDateString('pt-BR') + "\n\n";
 
-            // 3. Montar as seções para cada turno separadamente
+            // 3. Montar as seções para cada turno no formato de linha única
             for (const turno in turnosAgrupados) {
                 texto += `*⏱️ ${turno.toUpperCase()}*\n`;
                 texto += `-----------------------------\n`;
                 
                 turnosAgrupados[turno].forEach(l => {
-                    texto += `👤 *Nome:* ${l.nome} ${l.sobrenome}\n`;
-                    texto += `🚪 *Portaria:* ${l.portaria}\n`;
-                    texto += `🕒 *Horário:* ${l.hora}\n`;
-                    texto += `🏢 *Empresa:* ${l.empresa}\n`;
-                    texto += `\n`; // Quebra de linha entre colaboradores do mesmo turno
+                    // Formato: • Nome Sobrenome | Portaria - Horário - Empresa
+                    texto += `• ${l.nome} ${l.sobrenome} | ${l.portaria} - ${l.hora} - ${l.empresa}\n`;
                 });
                 
-                texto += `\n`; // Quebra de linha adicional após finalizar um bloco de turno
+                texto += `\n`; // Quebra de linha entre blocos de turnos
             }
 
             // 4. Rodapé solicitado com a assinatura exata
-            texto += "_Gerado automaticamente pelo sistema NBL_";
+            texto += "_gerado pelo sistema NBL_";
             
             // 5. Enviar para a API do WhatsApp
             const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(texto)}`;
