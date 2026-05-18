@@ -1,23 +1,20 @@
 import os
 import io
 import pandas as pd
-from datetime import datetime
 from flask import Flask, render_template, request, jsonify, make_response
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
-# Bibliotecas para PDF e Excel
+# Bibliotecas para geração de PDF
 from reportlab.lib.pagesizes import A4
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet
 
-# --- CONFIGURAÇÃO DE CAMINHO ABSOLUTO ---
 base_dir = os.path.dirname(os.path.abspath(__file__))
 template_path = os.path.join(base_dir, 'templates')
 
 app = Flask(__name__, template_folder=template_path)
-
 ADMIN_PASS = os.environ.get('ADMIN_PASSWORD', 'admin123')
 
 def get_db_connection():
@@ -79,7 +76,7 @@ def api_salvar_usuario():
             ON CONFLICT (usuario_login) DO UPDATE SET
             nome=EXCLUDED.nome, sobrenome=EXCLUDED.sobrenome, codigo_acesso=EXCLUDED.codigo_acesso, 
             empresa=EXCLUDED.empresa, sede=EXCLUDED.sede
-        """, (data['nome'], data['sobrenome'], data['usuario_login'], data['codigo_acesso'], data['empresa'], data['sede']))
+        """, (data['nome'], data['sobrenome'], data['usuario_login'], data['codigo_acesso'], data['empresa'], data.get('sede','')))
         conn.commit()
         return jsonify({"status": "ok"})
     except Exception as e:
@@ -111,7 +108,6 @@ def api_validar():
         cur.execute("SELECT nome FROM usuarios WHERE usuario_login = %s AND codigo_acesso = %s", (data['usuario'], data['codigo']))
         user = cur.fetchone()
         if user:
-            # Insere o log garantindo que o TIMESTAMP use o fuso de Belém
             cur.execute("""
                 INSERT INTO logs (colaborador, portaria, turno, data_hora) 
                 VALUES (%s, %s, %s, NOW() AT TIME ZONE 'America/Belem')
@@ -125,7 +121,7 @@ def api_validar():
     finally:
         conn.close()
 
-# --- MONITORAMENTO E EXPORTAÇÃO (SINCRO COM TIMEZONE) ---
+# --- MONITORAMENTO EM TEMPO REAL ---
 
 @app.route('/admin/status_realtime')
 @app.route('/api/admin/status_realtime')
@@ -133,7 +129,6 @@ def status_realtime():
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
     try:
-        # Garante a formatação e o filtro do dia atual com base no fuso de Belém
         cur.execute("""
             SELECT u.nome, u.sobrenome, u.empresa, l.portaria, l.turno,
                    TO_CHAR(l.data_hora, 'HH24:MI') as hora
@@ -150,28 +145,33 @@ def status_realtime():
     finally:
         conn.close()
 
+# --- EXPORTAÇÕES DO DIA ATUAL (EXCEL E PDF) ---
+
 @app.route('/admin/exportar/excel')
 def exportar_excel():
     if request.cookies.get('auth_admin') != ADMIN_PASS: 
         return "Não autorizado", 401
     
     conn = get_db_connection()
+    # Filtra apenas registros de hoje usando o fuso de Belém
     df = pd.read_sql_query("""
-        SELECT u.nome, u.sobrenome, u.empresa, l.portaria, l.turno,
+        SELECT u.nome as "Nome", u.sobrenome as "Sobrenome", u.empresa as "Empresa", 
+               l.portaria as "Portaria", l.turno as "Turno",
                TO_CHAR(l.data_hora, 'DD/MM/YYYY HH24:MI:SS') as "Data/Hora"
         FROM logs l
         JOIN usuarios u ON l.colaborador = u.usuario_login
+        WHERE l.data_hora::date = (NOW() AT TIME ZONE 'America/Belem')::date
         ORDER BY l.data_hora DESC
     """, conn)
     conn.close()
 
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-        df.to_excel(writer, index=False, sheet_name='Acessos')
+        df.to_excel(writer, index=False, sheet_name='Acessos de Hoje')
     output.seek(0)
 
     response = make_response(output.read())
-    response.headers["Content-Disposition"] = "attachment; filename=relatorio_acessos.xlsx"
+    response.headers["Content-Disposition"] = "attachment; filename=acessos_hoje.xlsx"
     response.headers["Content-type"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     return response
 
@@ -182,11 +182,13 @@ def exportar_pdf():
 
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
+    # Filtra apenas registros de hoje usando o fuso de Belém
     cur.execute("""
         SELECT u.nome || ' ' || u.sobrenome as funcionario, u.empresa, l.portaria, l.turno,
                TO_CHAR(l.data_hora, 'DD/MM/YYYY HH24:MI') as data_hora
         FROM logs l
         JOIN usuarios u ON l.colaborador = u.usuario_login
+        WHERE l.data_hora::date = (NOW() AT TIME ZONE 'America/Belem')::date
         ORDER BY l.data_hora DESC
     """)
     logs = cur.fetchall()
@@ -197,7 +199,7 @@ def exportar_pdf():
     elements = []
     styles = getSampleStyleSheet()
 
-    elements.append(Paragraph("<b>RELATÓRIO DE ACESSOS - NBL LOG</b>", styles['Title']))
+    elements.append(Paragraph("<b>RELATÓRIO DE ACESSOS DIÁRIOS - NBL LOG</b>", styles['Title']))
     elements.append(Spacer(1, 20))
 
     data = [["Funcionário", "Empresa", "Portaria", "Turno", "Data/Hora"]]
@@ -220,7 +222,7 @@ def exportar_pdf():
     
     buffer.seek(0)
     response = make_response(buffer.read())
-    response.headers["Content-Disposition"] = "attachment; filename=relatorio_acessos.pdf"
+    response.headers["Content-Disposition"] = "attachment; filename=acessos_hoje.pdf"
     response.headers["Content-type"] = "application/pdf"
     return response
 
