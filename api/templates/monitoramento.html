@@ -5,13 +5,29 @@
     <title>Monitoramento Real-Time | NBL LOG</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        :root { --blue: #002855; --green: #27ae60; --bg: #f4f7f9; }
+        :root { 
+            --blue: #002855; 
+            --green: #27ae60; 
+            --bg: #f4f7f9; 
+            --excel: #107c41;
+            --pdf: #a82424;
+        }
         body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; display: flex; }
         .sidebar { width: 250px; background: var(--blue); color: white; height: 100vh; position: fixed; padding: 20px; box-sizing: border-box; }
         .main { margin-left: 250px; padding: 30px; width: calc(100% - 250px); }
         .card { background: white; border-radius: 12px; padding: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-        .btn-ws { background: #25D366; color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 16px; margin-bottom: 20px; display: inline-flex; align-items: center; gap: 10px; text-decoration: none; }
+        
+        /* Área de Botões de Ação */
+        .actions-container { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+        
+        .btn-action { color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 15px; display: inline-flex; align-items: center; gap: 10px; text-decoration: none; transition: background 0.2s; }
+        .btn-ws { background: #25D366; }
         .btn-ws:hover { background: #1ebd59; }
+        .btn-excel { background: var(--excel); }
+        .btn-excel:hover { background: #0b592e; }
+        .btn-pdf { background: var(--pdf); }
+        .btn-pdf:hover { background: #7d1a1a; }
+        
         table { width: 100%; border-collapse: collapse; margin-top: 15px; }
         th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #e1e8ed; }
         th { background: var(--blue); color: white; }
@@ -34,9 +50,17 @@
     </div>
 
     <div class="main">
-        <button class="btn-ws" onclick="enviarRelatorioWhatsapp()">
-            <i class="fab fa-whatsapp"></i> Enviar Relatório no WhatsApp
-        </button>
+        <div class="actions-container">
+            <button class="btn-action btn-ws" onclick="enviarRelatorioWhatsapp()">
+                <i class="fab fa-whatsapp"></i> Enviar no WhatsApp
+            </button>
+            <a href="/admin/exportar/excel" class="btn-action btn-excel">
+                <i class="fas fa-file-excel"></i> Exportar Excel
+            </a>
+            <a href="/admin/exportar/pdf" class="btn-action btn-pdf">
+                <i class="fas fa-file-pdf"></i> Exportar PDF
+            </a>
+        </div>
 
         <div class="card">
             <h2>Acessos em Tempo Real (Hoje)</h2>
@@ -87,7 +111,6 @@
         function enviarRelatorioWhatsapp() {
             if (logsAtuais.length === 0) return alert("Nenhum registro hoje.");
 
-            // 1. Agrupar os logs por turno
             const turnosAgrupados = {};
             
             logsAtuais.forEach(l => {
@@ -98,32 +121,26 @@
                 turnosAgrupados[turnoNome].push(l);
             });
 
-            // 2. Montar cabeçalho da mensagem (conforme imagem)
             let texto = "*📊 RELATÓRIO DE ACESSOS - NBL LOG*\n";
             texto += "*Data:* " + new Date().toLocaleDateString('pt-BR') + "\n\n";
 
-            // 3. Montar as seções para cada turno no formato de linha única
             for (const turno in turnosAgrupados) {
                 texto += `*⏱️ ${turno.toUpperCase()}*\n`;
                 texto += `-----------------------------\n`;
                 
                 turnosAgrupados[turno].forEach(l => {
-                    // Formato: • Nome Sobrenome | Portaria - Horário - Empresa
                     texto += `• ${l.nome} ${l.sobrenome} | ${l.portaria} - ${l.hora} - ${l.empresa}\n`;
                 });
                 
-                texto += `\n`; // Quebra de linha entre blocos de turnos
+                texto += `\n`; 
             }
 
-            // 4. Rodapé solicitado com a assinatura exata
-            texto += "_Gerado automaticamente pelo sistema REFRASH NBL_";
+            texto += "_gerado pelo sistema NBL_";
             
-            // 5. Enviar para a API do WhatsApp
             const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(texto)}`;
             window.open(url, '_blank');
         }
 
-        // Atualiza a cada 5 segundos automaticamente
         setInterval(carregarLogs, 5000);
         carregarLogs();
     </script>
