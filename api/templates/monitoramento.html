@@ -10,45 +10,47 @@
         .sidebar { width: 250px; background: var(--blue); color: white; height: 100vh; position: fixed; padding: 20px; box-sizing: border-box; }
         .main { margin-left: 250px; padding: 30px; width: calc(100% - 250px); }
         .card { background: white; border-radius: 12px; padding: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-        .btn-ws { background: #25D366; color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 16px; margin-bottom: 20px; }
-        .btn-ws:hover { background: #128C7E; }
-        .btn-nav { background: rgba(255,255,255,0.1); color: white; border: none; width: 100%; padding: 10px; text-align: left; margin-bottom: 5px; border-radius: 5px; cursor: pointer; }
-        .btn-nav:hover { background: rgba(255,255,255,0.2); }
-        table { width: 100%; border-collapse: collapse; background: white; }
-        th { background: #f8f9fa; padding: 15px; text-align: left; color: var(--blue); border-bottom: 2px solid #eee; }
-        td { padding: 15px; border-bottom: 1px solid #eee; }
-        .badge { padding: 5px 10px; border-radius: 15px; font-size: 12px; font-weight: bold; background: #e1e8ed; }
+        .btn-ws { background: #25D366; color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 16px; margin-bottom: 20px; display: inline-flex; align-items: center; gap: 10px; text-decoration: none; }
+        .btn-ws:hover { background: #1ebd59; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #e1e8ed; }
+        th { background: var(--blue); color: white; }
+        .badge { background: #e1f5fe; color: #0288d1; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
+        
+        /* Estilos da Sidebar */
+        .sidebar h3 { margin-top: 0; margin-bottom: 30px; text-align: center; letter-spacing: 1px; }
+        .sidebar a { color: white; text-decoration: none; display: block; padding: 12px; margin-bottom: 10px; border-radius: 8px; background: rgba(255,255,255,0.05); }
+        .sidebar a:hover { background: rgba(255,255,255,0.15); }
+        .sidebar a.active { background: #4a7ab5; }
     </style>
 </head>
 <body>
+
     <div class="sidebar">
-        <h3>NBL MONITOR</h3>
-        <hr>
-        <button class="btn-nav" onclick="location.href='/admin'"><i class="fas fa-users"></i> Gestão de Usuários</button>
-        <button class="btn-nav" onclick="location.href='/admin/monitoramento'"><i class="fas fa-desktop"></i> Monitoramento</button>
-        <button class="btn-nav" onclick="location.href='/'" style="margin-top: 20px;"><i class="fas fa-sign-out-alt"></i> Sair</button>
+        <h3>NBL LOG</h3>
+        <a href="/admin">Gestão de Usuários</a>
+        <a href="/admin/monitoramento" class="active">Monitoramento</a>
+        <a href="/">Sair (Totem)</a>
     </div>
 
     <div class="main">
+        <button class="btn-ws" onclick="enviarRelatorioWhatsapp()">
+            <i class="fab fa-whatsapp"></i> Enviar Relatório no WhatsApp
+        </button>
+
         <div class="card">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <h2>Acessos em Tempo Real (Hoje)</h2>
-                <button class="btn-ws" onclick="enviarRelatorioWhatsapp()">
-                    <i class="fab fa-whatsapp"></i> ENVIAR RELATÓRIO NO GRUPO
-                </button>
-            </div>
-            
+            <h2>Acessos em Tempo Real (Hoje)</h2>
             <table>
                 <thead>
                     <tr>
-                        <th>Hora</th>
+                        <th>Horário</th>
                         <th>Colaborador</th>
                         <th>Empresa</th>
                         <th>Portaria</th>
                         <th>Turno</th>
                     </tr>
                 </thead>
-                <tbody id="tabelaLogs">
+                <tbody id="logs-body">
                     </tbody>
             </table>
         </div>
@@ -61,8 +63,9 @@
             try {
                 const res = await fetch('/api/admin/status_realtime');
                 const data = await res.json();
-                logsAtuais = data; // Guarda para o relatório
-                const tbody = document.getElementById('tabelaLogs');
+                logsAtuais = data;
+
+                const tbody = document.getElementById('logs-body');
                 tbody.innerHTML = '';
 
                 data.forEach(l => {
@@ -72,31 +75,58 @@
                             <td>${l.nome} ${l.sobrenome}</td>
                             <td>${l.empresa}</td>
                             <td><span class="badge">${l.portaria}</span></td>
-                            <td><span class="badge" style="background:#fff3cd">${l.turno}</span></td>
+                            <td><span class="badge" style="background:#fff3cd; color:#856404;">${l.turno}</span></td>
                         </tr>
                     `;
                 });
-            } catch (e) { console.error("Erro ao carregar logs"); }
+            } catch (e) { 
+                console.error("Erro ao carregar logs", e); 
+            }
         }
 
         function enviarRelatorioWhatsapp() {
             if (logsAtuais.length === 0) return alert("Nenhum registro hoje.");
 
+            // 1. Agrupar os logs por turno
+            const turnosAgrupados = {};
+            
+            logsAtuais.forEach(l => {
+                const turnoNome = l.turno || "Não Definido";
+                if (!turnosAgrupados[turnoNome]) {
+                    turnosAgrupados[turnoNome] = [];
+                }
+                turnosAgrupados[turnoNome].push(l);
+            });
+
+            // 2. Montar cabeçalho da mensagem
             let texto = "*📊 RELATÓRIO DE ACESSOS - NBL LOG*\n";
             texto += "*Data:* " + new Date().toLocaleDateString('pt-BR') + "\n\n";
 
-            logsAtuais.forEach(l => {
-                texto += `🕒 ${l.hora} - *${l.nome}* (${l.portaria} - ${l.turno})\n`;
-            });
+            // 3. Montar as seções para cada turno separadamente
+            for (const turno in turnosAgrupados) {
+                texto += `*⏱️ ${turno.toUpperCase()}*\n`;
+                texto += `-----------------------------\n`;
+                
+                turnosAgrupados[turno].forEach(l => {
+                    texto += `👤 *Nome:* ${l.nome} ${l.sobrenome}\n`;
+                    texto += `🚪 *Portaria:* ${l.portaria}\n`;
+                    texto += `🕒 *Horário:* ${l.hora}\n`;
+                    texto += `🏢 *Empresa:* ${l.empresa}\n`;
+                    texto += `\n`; // Quebra de linha entre colaboradores do mesmo turno
+                });
+                
+                texto += `\n`; // Quebra de linha adicional após finalizar um bloco de turno
+            }
 
-            texto += "\n_Gerado automaticamente pelo sistema NBL_";
+            // 4. Rodapé solicitado com a assinatura exata
+            texto += "_gerado pelo sistema NBL_";
             
-            // Abre o WhatsApp (pode ser o link do grupo ou geral para escolher o grupo)
+            // 5. Enviar para a API do WhatsApp
             const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(texto)}`;
             window.open(url, '_blank');
         }
 
-        // Atualiza a cada 5 segundos
+        // Atualiza a cada 5 segundos automaticamente
         setInterval(carregarLogs, 5000);
         carregarLogs();
     </script>
