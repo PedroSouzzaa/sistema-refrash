@@ -4,6 +4,7 @@ import pandas as pd
 from flask import Flask, render_template, request, jsonify, make_response
 import psycopg2
 from psycopg2.extras import RealDictCursor
+from sqlalchemy import create_engine  # Adicionado para corrigir o UserWarning do Pandas
 
 # Bibliotecas para geração de PDF
 from reportlab.lib.pagesizes import A4
@@ -16,9 +17,10 @@ template_path = os.path.join(base_dir, 'templates')
 
 app = Flask(__name__, template_folder=template_path)
 ADMIN_PASS = os.environ.get('ADMIN_PASSWORD', 'admin123')
+DATABASE_URL = os.environ.get('POSTGRES_URL')
 
 def get_db_connection():
-    conn = psycopg2.connect(os.environ.get('POSTGRES_URL'))
+    conn = psycopg2.connect(DATABASE_URL)
     # Força a sessão do banco de dados a trabalhar no fuso horário de Belém
     with conn.cursor() as cur:
         cur.execute("SET TIME ZONE 'America/Belem';")
@@ -152,9 +154,15 @@ def exportar_excel():
     if request.cookies.get('auth_admin') != ADMIN_PASS: 
         return "Não autorizado", 401
     
-    conn = get_db_connection()
-    # Filtra apenas registros de hoje usando o fuso de Belém
-    df = pd.read_sql_query("""
+    # Se a URL começar com postgres://, altera para postgresql:// exigido pelo SQLAlchemy
+    db_url = DATABASE_URL
+    if db_url and db_url.startswith("postgres://"):
+        db_url = db_url.replace("postgres://", "postgresql://", 1)
+
+    # Conexão segura utilizando SQLAlchemy Engine para evitar o UserWarning do Pandas
+    engine = create_engine(db_url)
+    
+    query = """
         SELECT u.nome as "Nome", u.sobrenome as "Sobrenome", u.empresa as "Empresa", 
                l.portaria as "Portaria", l.turno as "Turno",
                TO_CHAR(l.data_hora, 'DD/MM/YYYY HH24:MI:SS') as "Data/Hora"
@@ -162,8 +170,10 @@ def exportar_excel():
         JOIN usuarios u ON l.colaborador = u.usuario_login
         WHERE l.data_hora::date = (NOW() AT TIME ZONE 'America/Belem')::date
         ORDER BY l.data_hora DESC
-    """, conn)
-    conn.close()
+    """
+    
+    # Executa a busca mapeando diretamente com o engine estruturado
+    df = pd.read_sql_query(query, engine)
 
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
