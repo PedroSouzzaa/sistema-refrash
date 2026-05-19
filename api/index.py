@@ -4,7 +4,6 @@ import pandas as pd
 from flask import Flask, render_template, request, jsonify, make_response
 import psycopg2
 from psycopg2.extras import RealDictCursor
-from sqlalchemy import create_engine  # Adicionado para corrigir o UserWarning do Pandas
 
 # Bibliotecas para geração de PDF
 from reportlab.lib.pagesizes import A4
@@ -17,17 +16,14 @@ template_path = os.path.join(base_dir, 'templates')
 
 app = Flask(__name__, template_folder=template_path)
 ADMIN_PASS = os.environ.get('ADMIN_PASSWORD', 'admin123')
-DATABASE_URL = os.environ.get('POSTGRES_URL')
 
 def get_db_connection():
-    conn = psycopg2.connect(DATABASE_URL)
-    # Força a sessão do banco de dados a trabalhar no fuso horário de Belém
+    conn = psycopg2.connect(os.environ.get('POSTGRES_URL'))
     with conn.cursor() as cur:
         cur.execute("SET TIME ZONE 'America/Belem';")
     return conn
 
 # --- ROTAS DE NAVEGAÇÃO ---
-
 @app.route('/')
 def index(): 
     return render_template('index.html')
@@ -45,7 +41,6 @@ def monitoramento_page():
     return render_template('monitoramento.html')
 
 # --- APIs DE AUTENTICAÇÃO ---
-
 @app.route('/api/login', methods=['POST'])
 def api_login():
     data = request.json
@@ -56,7 +51,6 @@ def api_login():
     return jsonify({"status": "erro"}), 401
 
 # --- APIs DE GESTÃO DE USUÁRIOS ---
-
 @app.route('/api/usuarios/listar')
 def api_listar_usuarios():
     conn = get_db_connection()
@@ -99,7 +93,6 @@ def api_excluir_usuario(login):
     return jsonify({"status": "ok"})
 
 # --- COLABORADOR: VALIDAÇÃO E BATIDA DE PONTO ---
-
 @app.route('/api/colaborador/validar', methods=['POST'])
 @app.route('/colaborador/validar', methods=['POST'])
 def api_validar():
@@ -124,7 +117,6 @@ def api_validar():
         conn.close()
 
 # --- MONITORAMENTO EM TEMPO REAL ---
-
 @app.route('/admin/status_realtime')
 @app.route('/api/admin/status_realtime')
 def status_realtime():
@@ -137,7 +129,7 @@ def status_realtime():
             FROM logs l 
             JOIN usuarios u ON l.colaborador = u.usuario_login 
             WHERE l.data_hora::date = (NOW() AT TIME ZONE 'America/Belem')::date
-            ORDER BY l.data_hora DESC
+            ORDER BY l.portaria ASC, l.data_hora DESC
         """)
         logs = cur.fetchall()
         return jsonify(logs)
@@ -147,44 +139,36 @@ def status_realtime():
     finally:
         conn.close()
 
-# --- EXPORTAÇÕES DO DIA ATUAL (EXCEL E PDF) ---
-
+# --- EXPORTAR EXCEL (AGRUPADO POR PORTARIA) ---
 @app.route('/admin/exportar/excel')
 def exportar_excel():
     if request.cookies.get('auth_admin') != ADMIN_PASS: 
         return "Não autorizado", 401
     
-    # Se a URL começar com postgres://, altera para postgresql:// exigido pelo SQLAlchemy
-    db_url = DATABASE_URL
-    if db_url and db_url.startswith("postgres://"):
-        db_url = db_url.replace("postgres://", "postgresql://", 1)
-
-    # Conexão segura utilizando SQLAlchemy Engine para evitar o UserWarning do Pandas
-    engine = create_engine(db_url)
-    
-    query = """
-        SELECT u.nome as "Nome", u.sobrenome as "Sobrenome", u.empresa as "Empresa", 
-               l.portaria as "Portaria", l.turno as "Turno",
-               TO_CHAR(l.data_hora, 'DD/MM/YYYY HH24:MI:SS') as "Data/Hora"
+    conn = get_db_connection()
+    df = pd.read_sql_query("""
+        SELECT l.portaria as "Portaria",
+               u.nome as "Nome", u.sobrenome as "Sobrenome", 
+               TO_CHAR(l.data_hora, 'DD/MM/YYYY HH24:MI:SS') as "Data/Hora Acesso",
+               l.turno as "Turno", u.empresa as "Empresa"
         FROM logs l
         JOIN usuarios u ON l.colaborador = u.usuario_login
         WHERE l.data_hora::date = (NOW() AT TIME ZONE 'America/Belem')::date
-        ORDER BY l.data_hora DESC
-    """
-    
-    # Executa a busca mapeando diretamente com o engine estruturado
-    df = pd.read_sql_query(query, engine)
+        ORDER BY l.portaria ASC, l.data_hora DESC
+    """, conn)
+    conn.close()
 
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-        df.to_excel(writer, index=False, sheet_name='Acessos de Hoje')
+        df.to_excel(writer, index=False, sheet_name='Acessos por Portaria')
     output.seek(0)
 
     response = make_response(output.read())
-    response.headers["Content-Disposition"] = "attachment; filename=acessos_hoje.xlsx"
+    response.headers["Content-Disposition"] = "attachment; filename=acessos_portaria_hoje.xlsx"
     response.headers["Content-type"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     return response
 
+# --- EXPORTAR PDF (AGRUPADO POR PORTARIA) ---
 @app.route('/admin/exportar/pdf')
 def exportar_pdf():
     if request.cookies.get('auth_admin') != ADMIN_PASS: 
@@ -192,14 +176,14 @@ def exportar_pdf():
 
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
-    # Filtra apenas registros de hoje usando o fuso de Belém
     cur.execute("""
-        SELECT u.nome || ' ' || u.sobrenome as funcionario, u.empresa, l.portaria, l.turno,
-               TO_CHAR(l.data_hora, 'DD/MM/YYYY HH24:MI') as data_hora
+        SELECT l.portaria, u.nome || ' ' || u.sobrenome as funcionario,
+               TO_CHAR(l.data_hora, 'DD/MM/YYYY HH24:MI') as data_hora,
+               l.turno, u.empresa
         FROM logs l
         JOIN usuarios u ON l.colaborador = u.usuario_login
         WHERE l.data_hora::date = (NOW() AT TIME ZONE 'America/Belem')::date
-        ORDER BY l.data_hora DESC
+        ORDER BY l.portaria ASC, l.data_hora DESC
     """)
     logs = cur.fetchall()
     conn.close()
@@ -209,14 +193,15 @@ def exportar_pdf():
     elements = []
     styles = getSampleStyleSheet()
 
-    elements.append(Paragraph("<b>RELATÓRIO DE ACESSOS DIÁRIOS - NBL LOG</b>", styles['Title']))
+    elements.append(Paragraph("<b>RELATÓRIO DE ACESSOS DIÁRIOS POR PORTARIA</b>", styles['Title']))
     elements.append(Spacer(1, 20))
 
-    data = [["Funcionário", "Empresa", "Portaria", "Turno", "Data/Hora"]]
+    # Criação da Tabela Estruturada por Portaria primeiro
+    data = [["Portaria", "Funcionário", "Data/Hora Acesso", "Turno", "Empresa"]]
     for l in logs:
-        data.append([l['funcionario'], l['empresa'], l['portaria'], l['turno'], l['data_hora']])
+        data.append([l['portaria'], l['funcionario'], l['data_hora'], l['turno'], l['empresa']])
 
-    t = Table(data, colWidths=[150, 100, 60, 60, 110])
+    t = Table(data, colWidths=[60, 150, 110, 70, 100])
     t.setStyle(TableStyle([
         ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#002855")),
         ('TEXTCOLOR', (0,0), (-1,0), colors.white),
@@ -232,7 +217,7 @@ def exportar_pdf():
     
     buffer.seek(0)
     response = make_response(buffer.read())
-    response.headers["Content-Disposition"] = "attachment; filename=acessos_hoje.pdf"
+    response.headers["Content-Disposition"] = "attachment; filename=acessos_portaria_hoje.pdf"
     response.headers["Content-type"] = "application/pdf"
     return response
 
