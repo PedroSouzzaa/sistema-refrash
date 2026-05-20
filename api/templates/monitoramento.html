@@ -83,6 +83,13 @@
     <script>
         let logsAtuais = [];
 
+        // Definição exata da sua tabela de horários obrigatórios por turno para comparação
+        const HORARIOS_OBRIGATORIOS = {
+            "MANHÃ": ["07:00", "08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00"],
+            "TARDE": ["15:00", "16:00", "17:00", "18:00", "19:00"],
+            "NOITE": ["20:00", "21:00", "22:00", "23:00", "00:00", "01:00", "02:00", "03:00", "04:00", "05:00", "06:00"]
+        };
+
         async function carregarLogs() {
             try {
                 const res = await fetch('/api/admin/status_realtime');
@@ -111,26 +118,79 @@
         function enviarRelatorioWhatsapp() {
             if (logsAtuais.length === 0) return alert("Nenhum registro hoje.");
 
-            // 1. Agrupar os logs por Portaria
-            const portariasAgrupadas = {};
-            
+            // 1. Organizar os dados cruzando usuários com os registros de batidas deles hoje
+            const usuariosTurnos = {};
             logsAtuais.forEach(l => {
-                const portariaNome = l.portaria || "Não Definida";
-                if (!portariasAgrupadas[portariaNome]) {
-                    portariasAgrupadas[portariaNome] = [];
+                const chaveUser = `${l.nome} ${l.sobrenome}|${l.empresa}|${l.portaria}|${l.turno}`;
+                if (!usuariosTurnos[chaveUser]) {
+                    usuariosTurnos[chaveUser] = [];
                 }
-                portariasAgrupadas[portariaNome].push(l);
+                usuariosTurnos[chaveUser].push(l.hora);
             });
 
-            // 2. Cabeçalho da mensagem
+            // 2. Agrupar os dados finais estruturados por Portaria
+            const portariasAgrupadas = {};
+            for (const chaveUser in usuariosTurnos) {
+                const [nome, empresa, portaria, turno] = chaveUser.split('|');
+                if (!portariasAgrupadas[portaria]) {
+                    portariasAgrupadas[portaria] = [];
+                }
+                portariasAgrupadas[portaria].push({
+                    nome, empresa, turno, batidasReais: usuariosTurnos[chaveUser]
+                });
+            }
+
+            // 3. Montar cabeçalho da mensagem do WhatsApp
             let texto = "*📊 RELATÓRIO DE ACESSOS - NBL LOG*\n";
             texto += "*Data:* " + new Date().toLocaleDateString('pt-BR') + "\n\n";
 
-            // 3. Montar as seções separadas por Portaria colocando o emoji de confirmação
+            // 4. Montar listagem avaliando as presenças e ausências por horário esperado
             for (const portaria in portariasAgrupadas) {
                 texto += `*🚪 PORTARIA: ${portaria.toUpperCase()}*\n`;
                 texto += `-----------------------------\n`;
                 
-                portariasAgrupadas[portaria].forEach(l => {
-                    // Padrão estruturado direto com o emoji de confirmação ✅ no final de cada acesso realizado
-                    texto += `• ${l.nome} ${l.sobrenome}
+                portariasAgrupadas[portaria].forEach(user => {
+                    const turnoNorm = (user.turno || "").toUpperCase().trim();
+                    const horariosEsperados = HORARIOS_OBRIGATORIOS[turnoNorm] || [];
+                    
+                    if (horariosEsperados.length === 0) {
+                        // Se for um turno não mapeado, exibe os registros como confirmação direta
+                        user.batidasReais.forEach(hora => {
+                            texto += `• ${user.nome} | ${hora} - ${user.turno} - ${user.empresa} ✅\n`;
+                        });
+                    } else {
+                        // Varre cada hora obrigatória definida para o turno deste colaborador
+                        horariosEsperados.forEach(horaEsperada => {
+                            const horaEspH = horaEsperada.split(':')[0];
+                            
+                            // Procura se o funcionário bateu o ponto na hora cheia correspondente (ignorando minutos quebrados)
+                            const horaExataRegistrada = user.batidasReais.find(horaReal => horaReal.split(':')[0] === horaEspH);
+                            
+                            if (horaExataRegistrada) {
+                                // Usuário acessou o sistema -> Adiciona a hora real coletada com o emoji de verificação verde ✅
+                                texto += `• ${user.nome} | ${horaExataRegistrada} - ${user.turno} - ${user.empresa} ✅\n`;
+                            } else {
+                                // Usuário não bateu no horário esperado -> Coloca o emoji de X vermelho ❌
+                                texto += `• ${user.nome} | ${horaEsperada} - ${user.turno} - ${user.empresa} ❌\n`;
+                            }
+                        });
+                    }
+                });
+                
+                texto += `\n`; 
+            }
+
+            // 5. Rodapé e Assinatura fiel solicitada
+            texto += "_Gerado automaticamente pelo sistema REFRASH NBL_";
+            
+            // 6. Chamar API de compartilhamento do WhatsApp
+            const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(texto)}`;
+            window.open(url, '_blank');
+        }
+
+        // Monitoramento em tempo real a cada 5 segundos
+        setInterval(carregarLogs, 5000);
+        carregarLogs();
+    </script>
+</body>
+</html>
