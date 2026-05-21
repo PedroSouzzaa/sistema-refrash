@@ -3,6 +3,7 @@ import io
 import json
 from datetime import datetime
 import pandas as pd
+import requests  # Biblioteca necessária para despachar a mensagem para a API do WhatsApp
 from flask import Flask, render_template, request, jsonify, make_response
 import psycopg2
 from psycopg2.extras import RealDictCursor
@@ -20,6 +21,12 @@ app = Flask(__name__, template_folder=template_path)
 
 # Definição das constantes globais
 ADMIN_PASS = os.environ.get('ADMIN_PASSWORD', 'admin123')
+
+# --- CONFIGURAÇÃO DA API INTERMEDIÁRIA DO WHATSAPP ---
+# Vincule aqui a URL e o Token do gateway que você escolher (Z-API, Evolution API, etc.)
+WHATSAPP_API_URL = os.environ.get("WHATSAPP_API_URL", "https://api.sua-plataforma.com/send/message")
+WHATSAPP_API_TOKEN = os.environ.get("WHATSAPP_API_TOKEN", "seu-token-aqui")
+NUMERO_DESTINATARIO = os.environ.get("WHATSAPP_NUMERO_GESTOR", "5591999999999")  # Número com DDD do Gestor
 
 # Mapeamento de Horários Obrigatórios para a Engine Analítica
 HORARIOS_OBRIGATORIOS = {
@@ -46,7 +53,7 @@ def get_db_connection():
         cur.execute("SET TIME ZONE 'America/Belem';")
     return conn
 
-# --- ENGINE ANALÍTICA CORE (Cruza previsto vs realizado e suporta Cache) ---
+# --- ENGINE ANALÍTICA CORE ---
 def processar_matriz_analitica():
     # 1. Tentar ler do Cache se o Redis estiver ativo
     if redis_client:
@@ -57,7 +64,7 @@ def processar_matriz_analitica():
         except:
             pass
 
-    # 2. Se não houver cache ou Redis desativado, processa direto do PostgreSQL
+    # 2. Processamento direto do PostgreSQL
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
     cur.execute("""
@@ -165,7 +172,6 @@ def api_validar():
             """, (data['usuario'], data['portaria'], data['turno']))
             conn.commit()
             
-            # Limpa caches antigos quando há uma nova batida
             if redis_client:
                 try:
                     redis_client.delete("nbl_matriz_cache")
@@ -219,8 +225,64 @@ def status_realtime():
 
 @app.route('/api/admin/relatorio_processado')
 def relatorio_processado_api():
-    """ Rota requisitada pelo monitoramento.html para compor a mensagem do WhatsApp """
     return jsonify(processar_matriz_analitica())
+
+# --- NOVA ROTA: DISPARO AUTOMÁTICO (CRON JOB) ---
+@app.route('/api/cron/enviar_whatsapp', methods=['GET'])
+def cron_enviar_whatsapp():
+    """
+    Acionada de forma invisível pela Vercel às 07h, 16h e 22h.
+    Gera a matriz de acessos do dia e dispara direto para o WhatsApp do gestor.
+    """
+    # Verificação de segurança: garante que a chamada veio do agendador da Vercel
+    is_vercel_cron = request.headers.get("X-Vercel-Cron") == "1"
+    
+    # Permite execução direta no navegador apenas em ambiente local de desenvolvimento
+    if not is_vercel_cron and os.environ.get("FLASK_ENV") != "development":
+        return jsonify({"status": "erro", "msg": "Não autorizado"}), 401
+
+    try:
+        dados_processados = processar_matriz_analitica()
+
+        if not dados_processados:
+            return jsonify({"status": "ok", "msg": "Nenhum acesso para relatar hoje."})
+
+        # Montagem estruturada do corpo do texto em Markdown
+        texto = "*📊 RELATÓRIO AUTOMÁTICO DE ACESSOS - NBL LOG*\n"
+        texto += f"*Data/Hora:* {datetime.now().strftime('%d/%m/%Y %H:%M')}\n\n"
+
+        for portaria, usuarios in dados_processados.items():
+            texto += f"*🚪 PORTARIA: {portaria.upper()}*\n"
+            texto += f"-----------------------------\n"
+            
+            for user in usuarios:
+                for reg in user["registros"]:
+                    texto += f"• {user['nome']} | {reg['hora']} - {user['turno']} - {user['empresa']} {reg['status']}\n"
+            texto += f"\n"
+
+        texto += "_Enviado automaticamente pelo servidor REFRASH NBL_"
+
+        # Integração de Envio HTTP (Padrão para APIs como Evolution API ou Z-API)
+        payload = {
+            "number": NUMERO_DESTINATARIO,
+            "message": texto
+        }
+        headers = {
+            "Authorization": f"Bearer {WHATSAPP_API_TOKEN}",
+            "Content-Type": "application/json"
+        }
+        
+        # Despacha o pacote via POST para o gateway de mensagens
+        response = requests.post(WHATSAPP_API_URL, json=payload, headers=headers, timeout=15)
+        
+        return jsonify({
+            "status": "ok",
+            "http_code": response.status_code,
+            "msg": "Relatório automatizado despachado com sucesso!"
+        })
+
+    except Exception as err:
+        return jsonify({"status": "erro", "msg": f"Falha na execução do Cron: {str(err)}"}), 500
 
 # --- EXPORTAÇÕES DE RELATÓRIOS ---
 @app.route('/admin/exportar/excel')
