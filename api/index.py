@@ -12,13 +12,8 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet
 
-# --- RESOLUÇÃO CORPORATIVA DE CAMINHO PARA VERCEL (MÉTODO ABSOLUTO) ---
-# Força o Flask a olhar exatamente para o diretório físico onde o index.py está instanciado
-base_dir = os.path.dirname(os.path.abspath(__file__))
-template_path = os.path.abspath(os.path.join(base_dir, 'templates'))
-
-app = Flask(__name__, template_folder=template_path)
-# ---------------------------------------------------------------------
+# Inicialização padrão compatível nativamente com o empacotador da Vercel
+app = Flask(__name__, template_folder='templates')
 
 # Definição das constantes globais
 ADMIN_PASS = os.environ.get('ADMIN_PASSWORD', 'admin123')
@@ -121,7 +116,8 @@ def admin_page():
 def monitoramento_page():
     if request.cookies.get('auth_admin') != ADMIN_PASS:
         return render_template('login.html')
-    return render_template('admin/monitoramento.html')
+    # CORREÇÃO DEFINITIVA: Buscando o arquivo diretamente na raiz da pasta templates
+    return render_template('monitoramento.html')
 
 # --- APIS DE AUTENTICAÇÃO E REGISTRO ---
 @app.route('/api/login', methods=['POST'])
