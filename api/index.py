@@ -95,4 +95,41 @@ def processar_relatorio_inteligente():
                 if batida_encontrada:
                     analise_usuario["registros"].append({"hora": batida_encontrada, "status": "✅"})
                 else:
-                    analise_usuario["registros"].append({"
+                    analise_usuario["registros"].append({"hora": hora_esp, "status": "❌"})
+        
+        portarias_agrupadas[portaria].append(analise_usuario)
+
+    return portarias_agrupadas
+
+# --- ROTAS DE NAVEGAÇÃO ---
+@app.route('/')
+def index(): 
+    return render_template('index.html')
+
+@app.route('/admin')
+def admin_page():
+    if request.cookies.get('auth_admin') != ADMIN_PASS:
+        return render_template('login.html')
+    return render_template('admin.html')
+
+@app.route('/admin/monitoramento')
+def monitoramento_page():
+    if request.cookies.get('auth_admin') != ADMIN_PASS:
+        return render_template('login.html')
+    return render_template('monitoramento.html')
+
+# --- APIS DE AUTENTICAÇÃO E REGISTRO ---
+@app.route('/api/login', methods=['POST'])
+def api_login():
+    data = request.json
+    if data.get('user', '').lower() == "admin" and data.get('password') == ADMIN_PASS:
+        return jsonify({"status": "ok"})
+    return jsonify({"status": "erro"}), 401
+
+@app.route('/api/bater_ponto', methods=['POST'])
+def bater_ponto():
+    data = request.json
+    conn = get_db_connection()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    try:
+        cur
