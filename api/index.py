@@ -12,10 +12,12 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet
 
+# Inicialização OBRIGATÓRIA do app Flask no nível raiz do arquivo para a Vercel encontrar
 base_dir = os.path.dirname(os.path.abspath(__file__))
 template_path = os.path.join(base_dir, 'templates')
-
 app = Flask(__name__, template_folder=template_path)
+
+# Definição das constantes globais
 ADMIN_PASS = os.environ.get('ADMIN_PASSWORD', 'admin123')
 
 # Dicionário mestre de horários obrigatórios por turno para validação precisa
@@ -70,66 +72,3 @@ def processar_relatorio_inteligente():
         nome, empresa, portaria, turno = chave.split('|')
         turno_norm = (turno or "").upper().strip()
         horarios_esperados = HORARIOS_OBRIGATORIOS.get(turno_norm, [])
-        
-        if portaria not in portarias_agrupadas:
-            portarias_agrupadas[portaria] = []
-
-        analise_usuario = {
-            "nome": nome,
-            "empresa": empresa,
-            "turno": turno,
-            "registros": []
-        }
-
-        if not horarios_esperados:
-            # Caso o turno seja customizado e fora do padrão mestre, assume confirmação direta
-            for h in batidas_reais:
-                analise_usuario["registros"].append({"hora": h, "status": "✅"})
-        else:
-            for hora_esp in horarios_esperados:
-                hora_esp_h = hora_esp.split(':')[0]
-                
-                # Validação inteligente por correspondência aproximada do bloco da hora cheia
-                batida_encontrada = next((h for h in batidas_reais if h.split(':')[0] == hora_esp_h), None)
-                
-                if batida_encontrada:
-                    analise_usuario["registros"].append({"hora": batida_encontrada, "status": "✅"})
-                else:
-                    analise_usuario["registros"].append({"hora": hora_esp, "status": "❌"})
-        
-        portarias_agrupadas[portaria].append(analise_usuario)
-
-    return portarias_agrupadas
-
-# --- ROTAS DE NAVEGAÇÃO ---
-@app.route('/')
-def index(): 
-    return render_template('index.html')
-
-@app.route('/admin')
-def admin_page():
-    if request.cookies.get('auth_admin') != ADMIN_PASS:
-        return render_template('login.html')
-    return render_template('admin.html')
-
-@app.route('/admin/monitoramento')
-def monitoramento_page():
-    if request.cookies.get('auth_admin') != ADMIN_PASS:
-        return render_template('login.html')
-    return render_template('monitoramento.html')
-
-# --- APIS DE AUTENTICAÇÃO E REGISTRO ---
-@app.route('/api/login', methods=['POST'])
-def api_login():
-    data = request.json
-    if data.get('user', '').lower() == "admin" and data.get('password') == ADMIN_PASS:
-        return jsonify({"status": "ok"})
-    return jsonify({"status": "erro"}), 401
-
-@app.route('/api/bater_ponto', methods=['POST'])
-def bater_ponto():
-    data = request.json
-    conn = get_db_connection()
-    cur = conn.cursor(cursor_factory=RealDictCursor)
-    try:
-        cur
