@@ -1,10 +1,12 @@
 import os
 import io
+import json
 from datetime import datetime
 import pandas as pd
 from flask import Flask, render_template, request, jsonify, make_response
 import psycopg2
 from psycopg2.extras import RealDictCursor
+from upstash_redis import Redis  # Conexão HTTP otimizada para Serverless
 
 # Bibliotecas para geração de PDF estruturado
 from reportlab.lib.pagesizes import A4
@@ -18,6 +20,12 @@ app = Flask(__name__, template_folder='templates')
 # Definição das constantes globais
 ADMIN_PASS = os.environ.get('ADMIN_PASSWORD', 'admin123')
 
+# Inicialização do Cache Upstash Redis via variáveis de ambiente
+redis = Redis(
+    url=os.environ.get("UPSTASH_REDIS_REST_URL", ""),
+    token=os.environ.get("UPSTASH_REDIS_REST_TOKEN", "")
+)
+
 # Dicionário mestre de horários obrigatórios por turno para validação precisa
 HORARIOS_OBRIGATORIOS = {
     "MANHÃ": ["07:00", "08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00"],
@@ -28,20 +36,27 @@ HORARIOS_OBRIGATORIOS = {
 def get_db_connection():
     conn = psycopg2.connect(os.environ.get('POSTGRES_URL'))
     with conn.cursor() as cur:
-        # Garante fuso horário local correto sincronizado por transação
         cur.execute("SET TIME ZONE 'America/Belem';")
     return conn
 
-# --- ENGINE INTELIGENTE: COMPILADOR ANALÍTICO DE DADOS ---
+# --- ENGINE INTELIGENTE: COMPILADOR ANALÍTICO DE DADOS COM CACHE ---
 def processar_relatorio_inteligente():
     """
-    Função core que cruza os dados brutos de acessos do banco com as tabelas de turnos.
-    Garante precisão absoluta eliminando erros de minutos aproximados ou fuso horário.
+    Função core que cruza dados brutos com a tabela de turnos.
+    Utiliza Cache do Redis para evitar queries repetitivas ao banco de dados a cada 5s.
     """
+    # Tenta obter dados consolidados previamente salvos no Redis
+    try:
+        cached_data = redis.get("nbl_relatorio_cache")
+        if cached_data:
+            return json.loads(cached_data) if isinstance(cached_data, str) else cached_data
+    except Exception as cache_err:
+        print(f"Erro ao ler cache do Redis: {cache_err}")
+
+    # Se não houver cache válido, faz a busca física no PostgreSQL
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
     
-    # 1. Busca todos os logs do dia corrente de Belém
     cur.execute("""
         SELECT u.nome, u.sobrenome, u.empresa, l.portaria, l.turno,
                TO_CHAR(l.data_hora, 'HH24:MI') as hora
@@ -56,7 +71,6 @@ def processar_relatorio_inteligente():
     if not logs:
         return {}
 
-    # 2. Agrupa batidas reais por funcionário único para o cruzamento mapeado
     usuarios_turnos = {}
     for l in logs:
         chave = f"{l['nome']} {l['sobrenome']}|{l['empresa']}|{l['portaria']}|{l['turno']}"
@@ -64,7 +78,6 @@ def processar_relatorio_inteligente():
             usuarios_turnos[chave] = []
         usuarios_turnos[chave].append(l['hora'])
 
-    # 3. Executa a matriz de presença cruzando esperado vs realizado
     portarias_agrupadas = {}
     for chave, batidas_reais in usuarios_turnos.items():
         nome, empresa, portaria, turno = chave.split('|')
@@ -82,14 +95,11 @@ def processar_relatorio_inteligente():
         }
 
         if not horarios_esperados:
-            # Caso o turno seja customizado e fora do padrão mestre, assume confirmação direta
             for h in batidas_reais:
                 analise_usuario["registros"].append({"hora": h, "status": "✅"})
         else:
             for hora_esp in horarios_esperados:
                 hora_esp_h = hora_esp.split(':')[0]
-                
-                # Validação inteligente por correspondência aproximada do bloco da hora cheia
                 batida_encontrada = next((h for h in batidas_reais if h.split(':')[0] == hora_esp_h), None)
                 
                 if batida_encontrada:
@@ -98,6 +108,12 @@ def processar_relatorio_inteligente():
                     analise_usuario["registros"].append({"hora": hora_esp, "status": "❌"})
         
         portarias_agrupadas[portaria].append(analise_usuario)
+
+    # Salva o resultado final no Redis para durar 10 segundos antes da próxima consulta física
+    try:
+        redis.set("nbl_relatorio_cache", json.dumps(portarias_agrupadas), ex=10)
+    except Exception as cache_err:
+        print(f"Erro ao salvar cache no Redis: {cache_err}")
 
     return portarias_agrupadas
 
@@ -116,7 +132,6 @@ def admin_page():
 def monitoramento_page():
     if request.cookies.get('auth_admin') != ADMIN_PASS:
         return render_template('login.html')
-    # CORREÇÃO DEFINITIVA: Buscando o arquivo diretamente na raiz da pasta templates
     return render_template('monitoramento.html')
 
 # --- APIS DE AUTENTICAÇÃO E REGISTRO ---
@@ -124,31 +139,54 @@ def monitoramento_page():
 def api_login():
     data = request.json
     if data.get('user', '').lower() == "admin" and data.get('password') == ADMIN_PASS:
-        return jsonify({"status": "ok"})
+        resp = make_response(jsonify({"status": "ok"}))
+        resp.set_cookie('auth_admin', ADMIN_PASS, httponly=True, samesite='Lax')
+        return resp
     return jsonify({"status": "erro"}), 401
 
-@app.route('/api/bater_ponto', methods=['POST'])
-def bater_ponto():
+@app.route('/api/colaborador/validar', methods=['POST'])
+@app.route('/colaborador/validar', methods=['POST'])
+def api_validar():
     data = request.json
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
     try:
-        cur.execute("SELECT * FROM usuarios WHERE usuario_login = %s AND codigo_acesso = %s", 
-                    (data.get('usuario'), data.get('codigo')))
+        cur.execute("SELECT nome FROM usuarios WHERE usuario_login = %s AND codigo_acesso = %s", 
+                    (data['usuario'], data['codigo']))
         user = cur.fetchone()
-        
         if user:
-            cur.execute("INSERT INTO logs (colaborador, portaria, turno, data_hora) VALUES (%s, %s, %s, NOW())", 
-                        (data['usuario'], data['portaria'], data['turno']))
+            cur.execute("""
+                INSERT INTO logs (colaborador, portaria, turno, data_hora) 
+                VALUES (%s, %s, %s, NOW() AT TIME ZONE 'America/Belem')
+            """, (data['usuario'], data['portaria'], data['turno']))
             conn.commit()
+            
+            # 🔥 ESTRATÉGIA CACHE-BUSTING: Apaga o cache antigo para forçar atualização no próximo ciclo
+            try:
+                redis.delete("nbl_relatorio_cache")
+                redis.delete("nbl_realtime_cache")
+            except:
+                pass
+
             return jsonify({"status": "ok", "msg": f"Sucesso, {user['nome']}!"})
         return jsonify({"status": "erro", "msg": "Dados incorretos"}), 401
+    except Exception as e:
+        return jsonify({"status": "erro", "msg": "Erro interno"}), 500
     finally:
         conn.close()
 
-# --- API REALTIME PARA MONITORAMENTO NA TELA ---
+# --- API REALTIME COM STRATEGIC CACHING ---
+@app.route('/admin/status_realtime')
 @app.route('/api/admin/status_realtime')
 def status_realtime():
+    # Retorna do Redis instantaneamente se houver requisições em massa
+    try:
+        cached_logs = redis.get("nbl_realtime_cache")
+        if cached_logs:
+            return jsonify(json.loads(cached_logs) if isinstance(cached_logs, str) else cached_logs)
+    except:
+        pass
+
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
     try:
@@ -158,18 +196,20 @@ def status_realtime():
             FROM logs l 
             JOIN usuarios u ON l.colaborador = u.usuario_login 
             WHERE l.data_hora::date = (NOW() AT TIME ZONE 'America/Belem')::date
-            ORDER BY l.data_hora DESC
+            ORDER BY l.portaria ASC, l.data_hora DESC
         """)
-        return jsonify(cur.fetchall())
+        logs = cur.fetchall()
+        
+        try:
+            redis.set("nbl_realtime_cache", json.dumps(logs), ex=5)
+        except:
+            pass
+            
+        return jsonify(logs)
     except Exception as e:
         return jsonify([])
     finally:
         conn.close()
-
-# --- API AUXILIAR QUE RETORNA O RELATÓRIO PROCESSADO PELA IA ---
-@app.route('/api/admin/relatorio_processado')
-def api_relatorio_processado():
-    return jsonify(processar_relatorio_inteligente())
 
 # --- EXPORTAÇÃO EXCEL AUDITADO ---
 @app.route('/admin/exportar/excel')
@@ -248,16 +288,16 @@ def exportar_pdf():
 
 # --- APIS DE GESTÃO DE USUÁRIOS ---
 @app.route('/api/usuarios/listar')
-def listar_usuarios():
+def api_listar_usuarios():
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
-    cur.execute("SELECT * FROM usuarios ORDER BY nome ASC")
+    cur.execute("SELECT nome, sobrenome, usuario_login, codigo_acesso, empresa, sede FROM usuarios ORDER BY nome ASC")
     res = cur.fetchall()
     conn.close()
     return jsonify(res)
 
 @app.route('/api/usuarios/salvar', methods=['POST'])
-def salvar_usuario():
+def api_salvar_usuario():
     data = request.json
     conn = get_db_connection()
     cur = conn.cursor()
@@ -268,7 +308,7 @@ def salvar_usuario():
             ON CONFLICT (usuario_login) DO UPDATE SET
             nome=EXCLUDED.nome, sobrenome=EXCLUDED.sobrenome, codigo_acesso=EXCLUDED.codigo_acesso,
             empresa=EXCLUDED.empresa, sede=EXCLUDED.sede
-        """, (data['nome'], data['sobrenome'], data['usuario_login'], data['codigo_acesso'], data['empresa'], data['sede']))
+        """, (data['nome'], data['sobrenome'], data['usuario_login'], data['codigo_acesso'], data['empresa'], data.get('sede','')))
         conn.commit()
         return jsonify({"status": "ok"})
     except Exception as e:
@@ -276,18 +316,16 @@ def salvar_usuario():
     finally:
         conn.close()
 
-@app.route('/api/usuarios/excluir/<login>', methods=['DELETE'])
-def excluir_usuario(login):
+@app.route('/admin/usuarios/excluir/<login>', methods=['DELETE'])
+def api_excluir_usuario(login):
+    if request.cookies.get('auth_admin') != ADMIN_PASS: 
+        return jsonify({"status": "erro"}), 401
     conn = get_db_connection()
     cur = conn.cursor()
-    try:
-        cur.execute("DELETE FROM usuarios WHERE usuario_login = %s", (login,))
-        conn.commit()
-        return jsonify({"status": "ok"})
-    except Exception as e:
-        return jsonify({"status": "erro", "msg": str(e)}), 400
-    finally:
-        conn.close()
+    cur.execute("DELETE FROM usuarios WHERE usuario_login = %s", (login,))
+    conn.commit()
+    conn.close()
+    return jsonify({"status": "ok"})
 
 if __name__ == '__main__':
     app.run(debug=True)
