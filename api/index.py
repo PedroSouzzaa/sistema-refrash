@@ -12,10 +12,24 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet
 
-# Inicialização do app Flask no nível raiz do arquivo para a Vercel encontrar
+# --- SOLUÇÃO DE CAMINHO PARA A VERCEL ---
+# Descobre onde o index.py está rodando de verdade
 base_dir = os.path.dirname(os.path.abspath(__file__))
-template_path = os.path.join(base_dir, 'templates')
+
+# Define caminhos alternativos para garantir que os templates sejam achados localmente ou na nuvem
+caminho_local = os.path.join(base_dir, 'templates')
+caminho_raiz = os.path.join(os.path.dirname(base_dir), 'templates')
+
+if os.path.exists(os.path.join(caminho_local, 'admin', 'monitoramento.html')):
+    template_path = caminho_local
+elif os.path.exists(os.path.join(caminho_raiz, 'admin', 'monitoramento.html')):
+    template_path = caminho_raiz
+else:
+    # Fallback padrão caso esteja em ambiente compilado rígido
+    template_path = caminho_local
+
 app = Flask(__name__, template_folder=template_path)
+# ----------------------------------------
 
 # Definição das constantes globais
 ADMIN_PASS = os.environ.get('ADMIN_PASSWORD', 'admin123')
@@ -118,7 +132,6 @@ def admin_page():
 def monitoramento_page():
     if request.cookies.get('auth_admin') != ADMIN_PASS:
         return render_template('login.html')
-    # CORREÇÃO DEFINITIVA DO ERRO 404: Apontando para a subpasta admin/
     return render_template('admin/monitoramento.html')
 
 # --- APIS DE AUTENTICAÇÃO E REGISTRO ---
