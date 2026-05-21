@@ -17,7 +17,7 @@
         .main { margin-left: 250px; padding: 30px; width: calc(100% - 250px); }
         .card { background: white; border-radius: 12px; padding: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
         
-        /* Área de Botões de Ação */
+        /* Área de Ações e Botões Executivos */
         .actions-container { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
         
         .btn-action { color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 15px; display: inline-flex; align-items: center; gap: 10px; text-decoration: none; transition: background 0.2s; }
@@ -33,7 +33,7 @@
         th { background: var(--blue); color: white; }
         .badge { background: #e1f5fe; color: #0288d1; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
         
-        /* Estilos da Sidebar */
+        /* Sidebar Corporativa */
         .sidebar h3 { margin-top: 0; margin-bottom: 30px; text-align: center; letter-spacing: 1px; }
         .sidebar a { color: white; text-decoration: none; display: block; padding: 12px; margin-bottom: 10px; border-radius: 8px; background: rgba(255,255,255,0.05); }
         .sidebar a:hover { background: rgba(255,255,255,0.15); }
@@ -81,21 +81,11 @@
     </div>
 
     <script>
-        let logsAtuais = [];
-
-        // Definição exata da sua tabela de horários obrigatórios por turno para comparação
-        const HORARIOS_OBRIGATORIOS = {
-            "MANHÃ": ["07:00", "08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00"],
-            "TARDE": ["15:00", "16:00", "17:00", "18:00", "19:00"],
-            "NOITE": ["20:00", "21:00", "22:00", "23:00", "00:00", "01:00", "02:00", "03:00", "04:00", "05:00", "06:00"]
-        };
-
+        // Função responsável pela atualização contínua do Feed visual na tela (a cada 5s)
         async function carregarLogs() {
             try {
                 const res = await fetch('/api/admin/status_realtime');
                 const data = await res.json();
-                logsAtuais = data;
-
                 const tbody = document.getElementById('logs-body');
                 tbody.innerHTML = '';
 
@@ -111,84 +101,50 @@
                     `;
                 });
             } catch (e) { 
-                console.error("Erro ao carregar logs", e); 
+                console.error("Erro ao alimentar o painel visual.", e); 
             }
         }
 
-        function enviarRelatorioWhatsapp() {
-            if (logsAtuais.length === 0) return alert("Nenhum registro hoje.");
+        // Consome a análise processada pela IA do backend e constrói a mensagem formatada por Portaria
+        async function enviarRelatorioWhatsapp() {
+            try {
+                const res = await fetch('/api/admin/relatorio_processado');
+                const portariasAgrupadas = await res.json();
 
-            // 1. Organizar os dados cruzando usuários com os registros de batidas deles hoje
-            const usuariosTurnos = {};
-            logsAtuais.forEach(l => {
-                const chaveUser = `${l.nome} ${l.sobrenome}|${l.empresa}|${l.portaria}|${l.turno}`;
-                if (!usuariosTurnos[chaveUser]) {
-                    usuariosTurnos[chaveUser] = [];
+                if (Object.keys(portariasAgrupadas).length === 0) {
+                    return alert("Nenhum registro de acesso mapeado até o momento.");
                 }
-                usuariosTurnos[chaveUser].push(l.hora);
-            });
 
-            // 2. Agrupar os dados finais estruturados por Portaria
-            const portariasAgrupadas = {};
-            for (const chaveUser in usuariosTurnos) {
-                const [nome, empresa, portaria, turno] = chaveUser.split('|');
-                if (!portariasAgrupadas[portaria]) {
-                    portariasAgrupadas[portaria] = [];
-                }
-                portariasAgrupadas[portaria].push({
-                    nome, empresa, turno, batidasReais: usuariosTurnos[chaveUser]
-                });
-            }
+                // Criação da estrutura textual do Relatório Mestre
+                let texto = "*📊 RELATÓRIO DE ACESSOS - NBL LOG*\n";
+                texto += "*Data:* " + new Date().toLocaleDateString('pt-BR') + "\n\n";
 
-            // 3. Montar cabeçalho da mensagem do WhatsApp
-            let texto = "*📊 RELATÓRIO DE ACESSOS - NBL LOG*\n";
-            texto += "*Data:* " + new Date().toLocaleDateString('pt-BR') + "\n\n";
-
-            // 4. Montar listagem avaliando as presenças e ausências por horário esperado
-            for (const portaria in portariasAgrupadas) {
-                texto += `*🚪 PORTARIA: ${portaria.toUpperCase()}*\n`;
-                texto += `-----------------------------\n`;
-                
-                portariasAgrupadas[portaria].forEach(user => {
-                    const turnoNorm = (user.turno || "").toUpperCase().trim();
-                    const horariosEsperados = HORARIOS_OBRIGATORIOS[turnoNorm] || [];
+                for (const portaria in portariasAgrupadas) {
+                    texto += `*🚪 PORTARIA: ${portaria.toUpperCase()}*\n`;
+                    texto += `-----------------------------\n`;
                     
-                    if (horariosEsperados.length === 0) {
-                        // Se for um turno não mapeado, exibe os registros como confirmação direta
-                        user.batidasReais.forEach(hora => {
-                            texto += `• ${user.nome} | ${hora} - ${user.turno} - ${user.empresa} ✅\n`;
+                    portariasAgrupadas[portaria].forEach(user => {
+                        user.registros.forEach(reg => {
+                            // Renderiza linha por linha mapeada com o status ✅ ou ❌ correspondente vindo do servidor
+                            texto += `• ${user.nome} | ${reg.hora} - ${user.turno} - ${user.empresa} ${reg.status}\n`;
                         });
-                    } else {
-                        // Varre cada hora obrigatória definida para o turno deste colaborador
-                        horariosEsperados.forEach(horaEsperada => {
-                            const horaEspH = horaEsperada.split(':')[0];
-                            
-                            // Procura se o funcionário bateu o ponto na hora cheia correspondente (ignorando minutos quebrados)
-                            const horaExataRegistrada = user.batidasReais.find(horaReal => horaReal.split(':')[0] === horaEspH);
-                            
-                            if (horaExataRegistrada) {
-                                // Usuário acessou o sistema -> Adiciona a hora real coletada com o emoji de verificação verde ✅
-                                texto += `• ${user.nome} | ${horaExataRegistrada} - ${user.turno} - ${user.empresa} ✅\n`;
-                            } else {
-                                // Usuário não bateu no horário esperado -> Coloca o emoji de X vermelho ❌
-                                texto += `• ${user.nome} | ${horaEsperada} - ${user.turno} - ${user.empresa} ❌\n`;
-                            }
-                        });
-                    }
-                });
-                
-                texto += `\n`; 
-            }
+                    });
+                    texto += `\n`; 
+                }
 
-            // 5. Rodapé e Assinatura fiel solicitada
-            texto += "_Gerado automaticamente pelo sistema REFRASH NBL_";
-            
-            // 6. Chamar API de compartilhamento do WhatsApp
-            const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(texto)}`;
-            window.open(url, '_blank');
+                // Assinatura de conformidade padrão homologada
+                texto += "_Gerado automaticamente pelo sistema REFRASH NBL_";
+                
+                // Dispara o compartilhamento para o ecossistema do WhatsApp
+                const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(texto)}`;
+                window.open(url, '_blank');
+
+            } catch (e) {
+                alert("Erro operacional ao requisitar a matriz analítica do servidor.");
+            }
         }
 
-        // Monitoramento em tempo real a cada 5 segundos
+        // Execução contínua em Background
         setInterval(carregarLogs, 5000);
         carregarLogs();
     </script>
