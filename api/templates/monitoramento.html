@@ -105,7 +105,7 @@
             }
         }
 
-        // Consome a análise processada pela IA do backend e constrói a mensagem formatada por Portaria
+        // Consome a análise processada vinda do backend e monta a mensagem estruturada por Portaria
         async function enviarRelatorioWhatsapp() {
             try {
                 const res = await fetch('/api/admin/relatorio_processado');
@@ -115,7 +115,6 @@
                     return alert("Nenhum registro de acesso mapeado até o momento.");
                 }
 
-                // Criação da estrutura textual do Relatório Mestre
                 let texto = "*📊 RELATÓRIO DE ACESSOS - NBL LOG*\n";
                 texto += "*Data:* " + new Date().toLocaleDateString('pt-BR') + "\n\n";
 
@@ -125,17 +124,15 @@
                     
                     portariasAgrupadas[portaria].forEach(user => {
                         user.registros.forEach(reg => {
-                            // Renderiza linha por linha mapeada com o status ✅ ou ❌ correspondente vindo do servidor
+                            // Renderiza com precisão contendo o status ✅ ou ❌ calculado no backend
                             texto += `• ${user.nome} | ${reg.hora} - ${user.turno} - ${user.empresa} ${reg.status}\n`;
                         });
                     });
                     texto += `\n`; 
                 }
 
-                // Assinatura de conformidade padrão homologada
                 texto += "_Gerado automaticamente pelo sistema REFRASH NBL_";
                 
-                // Dispara o compartilhamento para o ecossistema do WhatsApp
                 const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(texto)}`;
                 window.open(url, '_blank');
 
@@ -144,7 +141,7 @@
             }
         }
 
-        // Execução contínua em Background
+        // Inicialização em background
         setInterval(carregarLogs, 5000);
         carregarLogs();
     </script>
