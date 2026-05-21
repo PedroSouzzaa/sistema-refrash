@@ -12,7 +12,7 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet
 
-# Inicialização OBRIGATÓRIA do app Flask no nível raiz do arquivo para a Vercel encontrar
+# Inicialização do app Flask no nível raiz do arquivo para a Vercel encontrar
 base_dir = os.path.dirname(os.path.abspath(__file__))
 template_path = os.path.join(base_dir, 'templates')
 app = Flask(__name__, template_folder=template_path)
@@ -72,3 +72,224 @@ def processar_relatorio_inteligente():
         nome, empresa, portaria, turno = chave.split('|')
         turno_norm = (turno or "").upper().strip()
         horarios_esperados = HORARIOS_OBRIGATORIOS.get(turno_norm, [])
+        
+        if portaria not in portarias_agrupadas:
+            portarias_agrupadas[portaria] = []
+
+        analise_usuario = {
+            "nome": nome,
+            "empresa": empresa,
+            "turno": turno,
+            "registros": []
+        }
+
+        if not horarios_esperados:
+            # Caso o turno seja customizado e fora do padrão mestre, assume confirmação direta
+            for h in batidas_reais:
+                analise_usuario["registros"].append({"hora": h, "status": "✅"})
+        else:
+            for hora_esp in horarios_esperados:
+                hora_esp_h = hora_esp.split(':')[0]
+                
+                # Validação inteligente por correspondência aproximada do bloco da hora cheia
+                batida_encontrada = next((h for h in batidas_reais if h.split(':')[0] == hora_esp_h), None)
+                
+                if batida_encontrada:
+                    analise_usuario["registros"].append({"hora": batida_encontrada, "status": "✅"})
+                else:
+                    analise_usuario["registros"].append({"hora": hora_esp, "status": "❌"})
+        
+        portarias_agrupadas[portaria].append(analise_usuario)
+
+    return portarias_agrupadas
+
+# --- ROTAS DE NAVEGAÇÃO ---
+@app.route('/')
+def index(): 
+    return render_template('index.html')
+
+@app.route('/admin')
+def admin_page():
+    if request.cookies.get('auth_admin') != ADMIN_PASS:
+        return render_template('login.html')
+    return render_template('admin.html')
+
+@app.route('/admin/monitoramento')
+def monitoramento_page():
+    if request.cookies.get('auth_admin') != ADMIN_PASS:
+        return render_template('login.html')
+    # CORREÇÃO: Apontando o caminho correto devido ao arquivo estar na subpasta 'admin'
+    return render_template('admin/monitoramento.html')
+
+# --- APIS DE AUTENTICAÇÃO E REGISTRO ---
+@app.route('/api/login', methods=['POST'])
+def api_login():
+    data = request.json
+    if data.get('user', '').lower() == "admin" and data.get('password') == ADMIN_PASS:
+        return jsonify({"status": "ok"})
+    return jsonify({"status": "erro"}), 401
+
+@app.route('/api/bater_ponto', methods=['POST'])
+def bater_ponto():
+    data = request.json
+    conn = get_db_connection()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    try:
+        cur.execute("SELECT * FROM usuarios WHERE usuario_login = %s AND codigo_acesso = %s", 
+                    (data.get('usuario'), data.get('codigo')))
+        user = cur.fetchone()
+        
+        if user:
+            cur.execute("INSERT INTO logs (colaborador, portaria, turno, data_hora) VALUES (%s, %s, %s, NOW())", 
+                        (data['usuario'], data['portaria'], data['turno']))
+            conn.commit()
+            return jsonify({"status": "ok", "msg": f"Sucesso, {user['nome']}!"})
+        return jsonify({"status": "erro", "msg": "Dados incorretos"}), 401
+    finally:
+        conn.close()
+
+# --- API REALTIME PARA MONITORAMENTO NA TELA ---
+@app.route('/api/admin/status_realtime')
+def status_realtime():
+    conn = get_db_connection()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    try:
+        cur.execute("""
+            SELECT u.nome, u.sobrenome, u.empresa, l.portaria, l.turno,
+                   TO_CHAR(l.data_hora, 'HH24:MI') as hora
+            FROM logs l 
+            JOIN usuarios u ON l.colaborador = u.usuario_login 
+            WHERE l.data_hora::date = (NOW() AT TIME ZONE 'America/Belem')::date
+            ORDER BY l.data_hora DESC
+        """)
+        return jsonify(cur.fetchall())
+    except Exception as e:
+        return jsonify([])
+    finally:
+        conn.close()
+
+# --- API AUXILIAR QUE RETORNA O RELATÓRIO PROCESSADO PELA IA ---
+@app.route('/api/admin/relatorio_processado')
+def api_relatorio_processado():
+    return jsonify(processar_relatorio_inteligente())
+
+# --- EXPORTAÇÃO EXCEL AUDITADO ---
+@app.route('/admin/exportar/excel')
+def exportar_excel():
+    if request.cookies.get('auth_admin') != ADMIN_PASS: 
+        return "Não autorizado", 401
+    
+    dados_processados = processar_relatorio_inteligente()
+    rows = []
+    
+    for portaria, usuarios in dados_processados.items():
+        for u in usuarios:
+            for r in u["registros"]:
+                rows.append({
+                    "Portaria": portaria,
+                    "Colaborador": u["nome"],
+                    "Empresa": u["empresa"],
+                    "Turno": u["turno"],
+                    "Horário Programado/Real": r["hora"],
+                    "Status": "Confirmado" if r["status"] == "✅" else "Falta/Incompleto"
+                })
+
+    df = pd.DataFrame(rows) if rows else pd.DataFrame(columns=["Portaria", "Colaborador", "Empresa", "Turno", "Horário Programado/Real", "Status"])
+    
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        df.to_excel(writer, index=False, sheet_name='Precisão Acessos')
+    output.seek(0)
+
+    response = make_response(output.read())
+    response.headers["Content-Disposition"] = "attachment; filename=precisao_acessos_nbl.xlsx"
+    response.headers["Content-type"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    return response
+
+# --- EXPORTAÇÃO PDF AUDITADO CORRIGIDO ---
+@app.route('/admin/exportar/pdf')
+def exportar_pdf():
+    if request.cookies.get('auth_admin') != ADMIN_PASS: 
+        return "Não autorizado", 401
+
+    dados_processados = processar_relatorio_inteligente()
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4)
+    elements = []
+    styles = getSampleStyleSheet()
+
+    elements.append(Paragraph("<b>RELATÓRIO AUDITADO DE ACESSOS - REFRASH NBL</b>", styles['Title']))
+    elements.append(Spacer(1, 15))
+
+    data = [["Portaria", "Funcionário", "Turno", "Horário", "Status"]]
+    
+    for portaria, usuarios in dados_processados.items():
+        for u in usuarios:
+            for r in u["registros"]:
+                status_texto = "OK" if r["status"] == "✅" else "AUSENTE"
+                data.append([portaria, u["nome"], u["turno"], r["hora"], status_texto])
+
+    t = Table(data, colWidths=[70, 160, 80, 85, 95])
+    t.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#002855")),
+        ('TEXTCOLOR', (0,0), (-1,0), colors.white),
+        ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+        ('BOTTOMPADDING', (0,0), (-1,0), 6),
+        ('GRID', (0,0), (-1,-1), 1, colors.HexColor("#cccccc")),
+        ('FONTSIZE', (0,0), (-1,-1), 9),
+    ]))
+    
+    elements.append(t)
+    doc.build(elements)
+    buffer.seek(0)
+    
+    response = make_response(buffer.read())
+    response.headers["Content-Disposition"] = "attachment; filename=auditoria_acessos.pdf"
+    response.headers["Content-type"] = "application/pdf"
+    return response
+
+# --- APIS DE GESTÃO DE USUÁRIOS ---
+@app.route('/api/usuarios/listar')
+def listar_usuarios():
+    conn = get_db_connection()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    cur.execute("SELECT * FROM usuarios ORDER BY nome ASC")
+    res = cur.fetchall()
+    conn.close()
+    return jsonify(res)
+
+@app.route('/api/usuarios/salvar', methods=['POST'])
+def salvar_usuario():
+    data = request.json
+    conn = get_db_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute("""
+            INSERT INTO usuarios (nome, sobrenome, usuario_login, codigo_acesso, empresa, sede)
+            VALUES (%s, %s, %s, %s, %s, %s)
+            ON CONFLICT (usuario_login) DO UPDATE SET
+            nome=EXCLUDED.nome, sobrenome=EXCLUDED.sobrenome, codigo_acesso=EXCLUDED.codigo_acesso,
+            empresa=EXCLUDED.empresa, sede=EXCLUDED.sede
+        """, (data['nome'], data['sobrenome'], data['usuario_login'], data['codigo_acesso'], data['empresa'], data['sede']))
+        conn.commit()
+        return jsonify({"status": "ok"})
+    except Exception as e:
+        return jsonify({"status": "erro", "msg": str(e)}), 400
+    finally:
+        conn.close()
+
+@app.route('/api/usuarios/excluir/<login>', methods=['DELETE'])
+def excluir_usuario(login):
+    conn = get_db_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute("DELETE FROM usuarios WHERE usuario_login = %s", (login,))
+        conn.commit()
+        return jsonify({"status": "ok"})
+    except Exception as e:
+        return jsonify({"status": "erro", "msg": str(e)}), 400
+    finally:
+        conn.close()
+
+if __name__ == '__main__':
+    app.run(debug=True)
