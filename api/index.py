@@ -118,7 +118,7 @@ def admin_page():
 def monitoramento_page():
     if request.cookies.get('auth_admin') != ADMIN_PASS:
         return render_template('login.html')
-    # CORREÇÃO: Apontando o caminho correto devido ao arquivo estar na subpasta 'admin'
+    # CORREÇÃO DEFINITIVA DO ERRO 404: Apontando para a subpasta admin/
     return render_template('admin/monitoramento.html')
 
 # --- APIS DE AUTENTICAÇÃO E REGISTRO ---
@@ -206,7 +206,7 @@ def exportar_excel():
     response.headers["Content-type"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     return response
 
-# --- EXPORTAÇÃO PDF AUDITADO CORRIGIDO ---
+# --- EXPORTAÇÃO PDF AUDITADO ---
 @app.route('/admin/exportar/pdf')
 def exportar_pdf():
     if request.cookies.get('auth_admin') != ADMIN_PASS: 
