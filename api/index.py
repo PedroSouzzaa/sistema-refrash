@@ -12,24 +12,13 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet
 
-# --- SOLUÇÃO DE CAMINHO PARA A VERCEL ---
-# Descobre onde o index.py está rodando de verdade
+# --- RESOLUÇÃO CORPORATIVA DE CAMINHO PARA VERCEL (MÉTODO ABSOLUTO) ---
+# Força o Flask a olhar exatamente para o diretório físico onde o index.py está instanciado
 base_dir = os.path.dirname(os.path.abspath(__file__))
-
-# Define caminhos alternativos para garantir que os templates sejam achados localmente ou na nuvem
-caminho_local = os.path.join(base_dir, 'templates')
-caminho_raiz = os.path.join(os.path.dirname(base_dir), 'templates')
-
-if os.path.exists(os.path.join(caminho_local, 'admin', 'monitoramento.html')):
-    template_path = caminho_local
-elif os.path.exists(os.path.join(caminho_raiz, 'admin', 'monitoramento.html')):
-    template_path = caminho_raiz
-else:
-    # Fallback padrão caso esteja em ambiente compilado rígido
-    template_path = caminho_local
+template_path = os.path.abspath(os.path.join(base_dir, 'templates'))
 
 app = Flask(__name__, template_folder=template_path)
-# ----------------------------------------
+# ---------------------------------------------------------------------
 
 # Definição das constantes globais
 ADMIN_PASS = os.environ.get('ADMIN_PASSWORD', 'admin123')
