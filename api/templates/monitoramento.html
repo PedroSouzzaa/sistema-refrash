@@ -61,11 +61,11 @@
         </div>
 
         <div id="matriz-container">
-        </div>
+            </div>
     </div>
 
     <script>
-        // Carrega a matriz de acessos das últimas 24h e renderiza no formato visual de horários fixos
+        // Carrega e renderiza a matriz de monitoramento em tempo real na tela do painel
         async function carregarMatriz() {
             try {
                 const res = await fetch('/api/admin/relatorio_processado');
@@ -93,7 +93,6 @@
                                         <tbody>`;
                     
                     portariasAgrupadas[portaria].forEach(user => {
-                        // Constrói os blocos de emojis com as horas exatas
                         let blocosHorarios = user.registros.map(r => {
                             let classe = r.status === '✅' ? 'badge-ok' : 'badge-falta';
                             return `<span class="badge ${classe}">${r.hora} ${r.status}</span>`;
@@ -115,11 +114,11 @@
             }
         }
 
-        // Envio estruturado para o WhatsApp usando o layout de lista vertical
+        // Gera a mensagem do WhatsApp no formato exato de lista vertical solicitado
         async function enviarRelatorioWhatsapp() {
             const novaJanela = window.open("", "_blank");
             if (!novaJanela) return alert("Por favor, permita pop-ups para este site para emitir o relatório.");
-            novaJanela.document.write("<p style='font-family:sans-serif; text-align:center; margin-top:50px;'>Gerando matriz analítica, por favor aguarde...</p>");
+            novaJanela.document.write("<p style='font-family:sans-serif; text-align:center; margin-top:50px;'>Gerando relatório no formato de lista vertical, aguarde...</p>");
 
             try {
                 const response = await fetch('/api/admin/relatorio_processado');
@@ -130,7 +129,7 @@
                     return alert("Nenhum registro de acesso mapeado nas últimas 24h.");
                 }
 
-                // Cabeçalho exatamente igual ao solicitado
+                // Cabeçalho estruturado conforme o exemplo fornecido
                 let texto = "*📊 RELATÓRIO DE ACESSOS - NBL LOG*\n";
                 texto += "*Data:* " + new Date().toLocaleDateString('pt-BR') + "\n\n";
 
@@ -140,7 +139,8 @@
                     
                     portariasAgrupadas[portaria].forEach(user => {
                         user.registros.forEach(reg => {
-                            // Constrói as linhas item por item em formato vertical
+                            // Constrói cada linha individualmente seguindo fielmente o padrão solicitado:
+                            // • Nome | Horário - TURNO - Empresa Emoji
                             texto += `• ${user.nome} | ${reg.hora} - ${user.turno.toUpperCase()} - ${user.empresa.toUpperCase()} ${reg.status}\n`;
                         });
                     });
@@ -156,6 +156,7 @@
             }
         }
 
+        // Execuções e Atualizações Periódicas
         setInterval(carregarMatriz, 5000);
         carregarMatriz();
     </script>
