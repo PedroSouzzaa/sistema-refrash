@@ -115,11 +115,11 @@
             }
         }
 
-        // Envio Anti-Bloqueio para o WhatsApp adaptado estritamente ao template corporativo
+        // Envio estruturado para o WhatsApp usando o layout de lista vertical
         async function enviarRelatorioWhatsapp() {
             const novaJanela = window.open("", "_blank");
             if (!novaJanela) return alert("Por favor, permita pop-ups para este site para emitir o relatório.");
-            novaJanela.document.write("<p style='font-family:sans-serif; text-align:center; margin-top:50px;'>Gerando matriz analítica das últimas 24h, por favor aguarde...</p>");
+            novaJanela.document.write("<p style='font-family:sans-serif; text-align:center; margin-top:50px;'>Gerando matriz analítica, por favor aguarde...</p>");
 
             try {
                 const response = await fetch('/api/admin/relatorio_processado');
@@ -130,22 +130,21 @@
                     return alert("Nenhum registro de acesso mapeado nas últimas 24h.");
                 }
 
-                // Título e data em linhas separadas conforme o template
-                let texto = "📊 *RELATÓRIO DE ACESSOS (24H) - NBL LOG*\n";
+                // Cabeçalho exatamente igual ao solicitado
+                let texto = "*📊 RELATÓRIO DE ACESSOS - NBL LOG*\n";
                 texto += "*Data:* " + new Date().toLocaleDateString('pt-BR') + "\n\n";
 
                 for (const portaria in portariasAgrupadas) {
-                    texto += `🚪 *PORTARIA: ${portaria.toUpperCase()}*\n`;
-                    texto += `-----------------------------\n\n`;
+                    texto += `*🚪 PORTARIA: ${portaria.toUpperCase()}*\n`;
+                    texto += `-----------------------------\n`;
                     
                     portariasAgrupadas[portaria].forEach(user => {
-                        // Linha identificadora com emoji de usuário
-                        texto += `👤 *${user.nome}* | ${user.empresa} | ${user.turno.toUpperCase()}\n`;
-                        
-                        // Consolida todas as batidas horizontalmente separadas por barra vertical
-                        let linhaHorarios = user.registros.map(r => `${r.hora} ${r.status}`).join(' | ');
-                        texto += `⏰ ${linhaHorarios}\n\n`;
+                        user.registros.forEach(reg => {
+                            // Constrói as linhas item por item em formato vertical
+                            texto += `• ${user.nome} | ${reg.hora} - ${user.turno.toUpperCase()} - ${user.empresa.toUpperCase()} ${reg.status}\n`;
+                        });
                     });
+                    texto += `\n`; 
                 }
 
                 texto += "_Gerado automaticamente pelo sistema REFRASH NBL_";
