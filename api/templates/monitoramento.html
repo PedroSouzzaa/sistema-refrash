@@ -15,29 +15,27 @@
         body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; display: flex; }
         .sidebar { width: 250px; background: var(--blue); color: white; height: 100vh; position: fixed; padding: 20px; box-sizing: border-box; }
         .main { margin-left: 250px; padding: 30px; width: calc(100% - 250px); }
-        .card { background: white; border-radius: 12px; padding: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        .card { background: white; border-radius: 12px; padding: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-bottom: 25px; }
         
-        /* Área de Ações e Botões Executivos */
         .actions-container { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
-        
         .btn-action { color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 15px; display: inline-flex; align-items: center; gap: 10px; text-decoration: none; transition: background 0.2s; }
-        .btn-ws { background: #25D366; }
-        .btn-ws:hover { background: #1ebd59; }
-        .btn-excel { background: var(--excel); }
-        .btn-excel:hover { background: #0b592e; }
-        .btn-pdf { background: var(--pdf); }
-        .btn-pdf:hover { background: #7d1a1a; }
+        .btn-ws { background: #25D366; } .btn-ws:hover { background: #1ebd59; }
+        .btn-excel { background: var(--excel); } .btn-excel:hover { background: #0b592e; }
+        .btn-pdf { background: var(--pdf); } .btn-pdf:hover { background: #7d1a1a; }
         
         table { width: 100%; border-collapse: collapse; margin-top: 15px; }
         th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #e1e8ed; }
         th { background: var(--blue); color: white; }
-        .badge { background: #e1f5fe; color: #0288d1; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
+        .badge { display: inline-block; margin: 3px; padding: 5px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; border: 1px solid #ccc; }
+        .badge-ok { background: #d4edda; color: #155724; border-color: #c3e6cb; }
+        .badge-falta { background: #f8d7da; color: #721c24; border-color: #f5c6cb; }
         
-        /* Sidebar Corporativa */
         .sidebar h3 { margin-top: 0; margin-bottom: 30px; text-align: center; letter-spacing: 1px; }
         .sidebar a { color: white; text-decoration: none; display: block; padding: 12px; margin-bottom: 10px; border-radius: 8px; background: rgba(255,255,255,0.05); }
         .sidebar a:hover { background: rgba(255,255,255,0.15); }
         .sidebar a.active { background: #4a7ab5; }
+        
+        .portaria-title { border-bottom: 2px solid var(--blue); padding-bottom: 5px; color: var(--blue); margin-top: 0;}
     </style>
 </head>
 <body>
@@ -45,7 +43,7 @@
     <div class="sidebar">
         <h3>NBL LOG</h3>
         <a href="/admin">Gestão de Usuários</a>
-        <a href="/admin/monitoramento" class="active">Monitoramento</a>
+        <a href="/admin/monitoramento" class="active">Monitoramento 24h</a>
         <a href="/">Sair (Totem)</a>
     </div>
 
@@ -62,60 +60,77 @@
             </a>
         </div>
 
-        <div class="card">
-            <h2>Acessos em Tempo Real (Hoje)</h2>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Horário</th>
-                        <th>Colaborador</th>
-                        <th>Empresa</th>
-                        <th>Portaria</th>
-                        <th>Turno</th>
-                    </tr>
-                </thead>
-                <tbody id="logs-body">
-                    </tbody>
-            </table>
-        </div>
+        <div id="matriz-container">
+            </div>
     </div>
 
     <script>
-        // Função responsável pela atualização contínua do Feed visual na tela (a cada 5s)
-        async function carregarLogs() {
-            try {
-                const res = await fetch('/api/admin/status_realtime');
-                const data = await res.json();
-                const tbody = document.getElementById('logs-body');
-                tbody.innerHTML = '';
-
-                data.forEach(l => {
-                    tbody.innerHTML += `
-                        <tr>
-                            <td><strong>${l.hora}</strong></td>
-                            <td>${l.nome} ${l.sobrenome}</td>
-                            <td>${l.empresa}</td>
-                            <td><span class="badge">${l.portaria}</span></td>
-                            <td><span class="badge" style="background:#fff3cd; color:#856404;">${l.turno}</span></td>
-                        </tr>
-                    `;
-                });
-            } catch (e) { 
-                console.error("Erro ao alimentar o painel visual.", e); 
-            }
-        }
-
-        // Consome a análise processada vinda do backend e monta a mensagem estruturada por Portaria
-        async function enviarRelatorioWhatsapp() {
+        // Carrega a matriz de acessos das últimas 24h e renderiza no formato visual de horários fixos
+        async function carregarMatriz() {
             try {
                 const res = await fetch('/api/admin/relatorio_processado');
                 const portariasAgrupadas = await res.json();
+                const container = document.getElementById('matriz-container');
+                container.innerHTML = '';
 
                 if (Object.keys(portariasAgrupadas).length === 0) {
-                    return alert("Nenhum registro de acesso mapeado até o momento.");
+                    container.innerHTML = '<div class="card"><p>Nenhum registro de acesso nas últimas 24 horas.</p></div>';
+                    return;
                 }
 
-                let texto = "*📊 RELATÓRIO DE ACESSOS - NBL LOG*\n";
+                for (const portaria in portariasAgrupadas) {
+                    let html = `<div class="card">
+                                    <h2 class="portaria-title">Portaria: ${portaria.toUpperCase()}</h2>
+                                    <table>
+                                        <thead>
+                                            <tr>
+                                                <th width="20%">Colaborador</th>
+                                                <th width="15%">Empresa</th>
+                                                <th width="10%">Turno</th>
+                                                <th width="55%">Status dos Horários (Últimas 24h)</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>`;
+                    
+                    portariasAgrupadas[portaria].forEach(user => {
+                        // Constrói os blocos de emojis com as horas exatas
+                        let blocosHorarios = user.registros.map(r => {
+                            let classe = r.status === '✅' ? 'badge-ok' : 'badge-falta';
+                            return `<span class="badge ${classe}">${r.hora} ${r.status}</span>`;
+                        }).join('');
+
+                        html += `<tr>
+                                    <td><strong>${user.nome}</strong></td>
+                                    <td>${user.empresa}</td>
+                                    <td><strong>${user.turno}</strong></td>
+                                    <td>${blocosHorarios}</td>
+                                 </tr>`;
+                    });
+
+                    html += `</tbody></table></div>`;
+                    container.innerHTML += html;
+                }
+            } catch (e) { 
+                console.error("Erro ao carregar a matriz analítica.", e); 
+            }
+        }
+
+        // Envio Anti-Bloqueio para o WhatsApp
+        async function enviarRelatorioWhatsapp() {
+            const novaJanela = window.open("", "_blank");
+            if (!novaJanela) return alert("Por favor, permita pop-ups para este site para emitir o relatório.");
+            novaJanela.document.write("<p style='font-family:sans-serif; text-align:center; margin-top:50px;'>Gerando matriz analítica das últimas 24h, por favor aguarde...</p>");
+
+            try {
+                const response = await fetch('/api/admin/relatorio_processado');
+                const portariasAgrupadas = await response.json();
+
+                if (Object.keys(portariasAgrupadas).length === 0) {
+                    novaJanela.close();
+                    return alert("Nenhum registro de acesso mapeado nas últimas 24h.");
+                }
+
+                let texto = "*📊 RELATÓRIO DE ACESSOS (24H) - NBL LOG*\n";
                 texto += "*Data:* " + new Date().toLocaleDateString('pt-BR') + "\n\n";
 
                 for (const portaria in portariasAgrupadas) {
@@ -123,27 +138,24 @@
                     texto += `-----------------------------\n`;
                     
                     portariasAgrupadas[portaria].forEach(user => {
-                        user.registros.forEach(reg => {
-                            // Renderiza com precisão contendo o status ✅ ou ❌ calculado no backend
-                            texto += `• ${user.nome} | ${reg.hora} - ${user.turno} - ${user.empresa} ${reg.status}\n`;
-                        });
+                        texto += `👤 *${user.nome}* | ${user.empresa} | ${user.turno}\n`;
+                        // Junta as horas e emojis lado a lado (ex: 07:00✅ | 08:00❌)
+                        let linhaHorarios = user.registros.map(r => `${r.hora}${r.status}`).join(' | ');
+                        texto += `⏱️ ${linhaHorarios}\n\n`;
                     });
-                    texto += `\n`; 
                 }
 
                 texto += "_Gerado automaticamente pelo sistema REFRASH NBL_";
-                
-                const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(texto)}`;
-                window.open(url, '_blank');
+                novaJanela.location.href = `https://api.whatsapp.com/send?text=${encodeURIComponent(texto)}`;
 
             } catch (e) {
-                alert("Erro operacional ao requisitar a matriz analítica do servidor.");
+                novaJanela.close();
+                alert("Erro ao requisitar dados do servidor.");
             }
         }
 
-        // Inicialização em background
-        setInterval(carregarLogs, 5000);
-        carregarLogs();
+        setInterval(carregarMatriz, 5000);
+        carregarMatriz();
     </script>
 </body>
 </html>
