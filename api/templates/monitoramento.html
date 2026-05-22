@@ -61,7 +61,7 @@
         </div>
 
         <div id="matriz-container">
-            </div>
+        </div>
     </div>
 
     <script>
@@ -115,7 +115,7 @@
             }
         }
 
-        // Envio Anti-Bloqueio para o WhatsApp
+        // Envio Anti-Bloqueio para o WhatsApp adaptado estritamente ao template corporativo
         async function enviarRelatorioWhatsapp() {
             const novaJanela = window.open("", "_blank");
             if (!novaJanela) return alert("Por favor, permita pop-ups para este site para emitir o relatório.");
@@ -130,18 +130,21 @@
                     return alert("Nenhum registro de acesso mapeado nas últimas 24h.");
                 }
 
-                let texto = "*📊 RELATÓRIO DE ACESSOS (24H) - NBL LOG*\n";
+                // Título e data em linhas separadas conforme o template
+                let texto = "📊 *RELATÓRIO DE ACESSOS (24H) - NBL LOG*\n";
                 texto += "*Data:* " + new Date().toLocaleDateString('pt-BR') + "\n\n";
 
                 for (const portaria in portariasAgrupadas) {
-                    texto += `*🚪 PORTARIA: ${portaria.toUpperCase()}*\n`;
-                    texto += `-----------------------------\n`;
+                    texto += `🚪 *PORTARIA: ${portaria.toUpperCase()}*\n`;
+                    texto += `-----------------------------\n\n`;
                     
                     portariasAgrupadas[portaria].forEach(user => {
-                        texto += `👤 *${user.nome}* | ${user.empresa} | ${user.turno}\n`;
-                        // Junta as horas e emojis lado a lado (ex: 07:00✅ | 08:00❌)
-                        let linhaHorarios = user.registros.map(r => `${r.hora}${r.status}`).join(' | ');
-                        texto += `⏱️ ${linhaHorarios}\n\n`;
+                        // Linha identificadora com emoji de usuário
+                        texto += `👤 *${user.nome}* | ${user.empresa} | ${user.turno.toUpperCase()}\n`;
+                        
+                        // Consolida todas as batidas horizontalmente separadas por barra vertical
+                        let linhaHorarios = user.registros.map(r => `${r.hora} ${r.status}`).join(' | ');
+                        texto += `⏰ ${linhaHorarios}\n\n`;
                     });
                 }
 
