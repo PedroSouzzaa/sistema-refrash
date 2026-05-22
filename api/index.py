@@ -3,7 +3,7 @@ import io
 import json
 from datetime import datetime
 import pandas as pd
-import requests  # Biblioteca necessária para despachar a mensagem para a API do WhatsApp
+import requests
 from flask import Flask, render_template, request, jsonify, make_response
 import psycopg2
 from psycopg2.extras import RealDictCursor
@@ -14,38 +14,31 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet
 
-# Inicialização padrão compatível com a árvore de diretórios da Vercel
+# Inicialização compatível com a Vercel
 base_dir = os.path.dirname(os.path.abspath(__file__))
 template_path = os.path.join(base_dir, 'templates')
 app = Flask(__name__, template_folder=template_path)
 
-# Definição das constantes globais
 ADMIN_PASS = os.environ.get('ADMIN_PASSWORD', 'admin123')
 
-# --- CONFIGURAÇÃO DA API INTERMEDIÁRIA DO WHATSAPP ---
-# Vincule aqui a URL e o Token do gateway que você escolher (Z-API, Evolution API, etc.)
+# Configurações da API do WhatsApp (Para o Cron Job)
 WHATSAPP_API_URL = os.environ.get("WHATSAPP_API_URL", "https://api.sua-plataforma.com/send/message")
 WHATSAPP_API_TOKEN = os.environ.get("WHATSAPP_API_TOKEN", "seu-token-aqui")
-NUMERO_DESTINATARIO = os.environ.get("WHATSAPP_NUMERO_GESTOR", "5591999999999")  # Número com DDD do Gestor
+NUMERO_DESTINATARIO = os.environ.get("WHATSAPP_NUMERO_GESTOR", "5591999999999")
 
-# Mapeamento de Horários Obrigatórios para a Engine Analítica
+# --- NOVO MAPEAMENTO DE TURNOS (DIURNO E NOTURNO) ---
 HORARIOS_OBRIGATORIOS = {
-    "MANHÃ": ["07:00", "08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00"],
-    "TARDE": ["15:00", "16:00", "17:00", "18:00", "19:00"],
-    "NOITE": ["20:00", "21:00", "22:00", "23:00", "00:00", "01:00", "02:00", "03:00", "04:00", "05:00", "06:00"]
+    "DIURNO": ["07:00", "08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00", "19:00"],
+    "NOTURNO": ["19:00", "20:00", "21:00", "22:00", "23:00", "00:00", "01:00", "02:00", "03:00", "04:00", "05:00", "06:00", "07:00"]
 }
 
-# Configuração Opcional do Redis (Não quebra o sistema se não estiver configurado)
 redis_client = None
 if os.environ.get("UPSTASH_REDIS_REST_URL") and os.environ.get("UPSTASH_REDIS_REST_TOKEN"):
     try:
         from upstash_redis import Redis
-        redis_client = Redis(
-            url=os.environ.get("UPSTASH_REDIS_REST_URL"),
-            token=os.environ.get("UPSTASH_REDIS_REST_TOKEN")
-        )
+        redis_client = Redis(url=os.environ.get("UPSTASH_REDIS_REST_URL"), token=os.environ.get("UPSTASH_REDIS_REST_TOKEN"))
     except Exception as e:
-        print(f"Aviso: Falha ao carregar biblioteca Upstash: {e}")
+        print(f"Aviso Upstash: {e}")
 
 def get_db_connection():
     conn = psycopg2.connect(os.environ.get('POSTGRES_URL'))
@@ -53,9 +46,8 @@ def get_db_connection():
         cur.execute("SET TIME ZONE 'America/Belem';")
     return conn
 
-# --- ENGINE ANALÍTICA CORE ---
+# --- ENGINE ANALÍTICA: MATRIZ DE 24 HORAS POR PORTARIA ---
 def processar_matriz_analitica():
-    # 1. Tentar ler do Cache se o Redis estiver ativo
     if redis_client:
         try:
             cached = redis_client.get("nbl_matriz_cache")
@@ -64,15 +56,16 @@ def processar_matriz_analitica():
         except:
             pass
 
-    # 2. Processamento direto do PostgreSQL
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
+    
+    # Filtra APENAS usuários que deram entrada nas últimas 24 horas
     cur.execute("""
         SELECT u.nome, u.sobrenome, u.empresa, l.portaria, l.turno,
                TO_CHAR(l.data_hora, 'HH24:MI') as hora
         FROM logs l 
         JOIN usuarios u ON l.colaborador = u.usuario_login 
-        WHERE l.data_hora::date = (NOW() AT TIME ZONE 'America/Belem')::date
+        WHERE l.data_hora >= (NOW() AT TIME ZONE 'America/Belem') - INTERVAL '24 hours'
         ORDER BY l.portaria ASC, l.data_hora DESC
     """)
     logs = cur.fetchall()
@@ -113,13 +106,12 @@ def processar_matriz_analitica():
                 batida_encontrada = next((h for h in batidas_reais if h.split(':')[0] == hora_esp_h), None)
                 
                 if batida_encontrada:
-                    analise_usuario["registros"].append({"hora": batida_encontrada, "status": "✅"})
+                    analise_usuario["registros"].append({"hora": hora_esp, "status": "✅"})
                 else:
                     analise_usuario["registros"].append({"hora": hora_esp, "status": "❌"})
         
         portarias_agrupadas[portaria].append(analise_usuario)
 
-    # 3. Salvar no cache por 10 segundos para mitigar acessos repetitivos
     if redis_client:
         try:
             redis_client.set("nbl_matriz_cache", json.dumps(portarias_agrupadas), ex=10)
@@ -130,22 +122,19 @@ def processar_matriz_analitica():
 
 # --- ROTAS DE PÁGINAS ---
 @app.route('/')
-def index(): 
-    return render_template('index.html')
+def index(): return render_template('index.html')
 
 @app.route('/admin')
 def admin_page():
-    if request.cookies.get('auth_admin') != ADMIN_PASS:
-        return render_template('login.html')
+    if request.cookies.get('auth_admin') != ADMIN_PASS: return render_template('login.html')
     return render_template('admin.html')
 
 @app.route('/admin/monitoramento')
 def monitoramento_page():
-    if request.cookies.get('auth_admin') != ADMIN_PASS:
-        return render_template('login.html')
+    if request.cookies.get('auth_admin') != ADMIN_PASS: return render_template('login.html')
     return render_template('monitoramento.html')
 
-# --- APIS DE SEGURANÇA E REGISTRO ---
+# --- APIS DE AUTENTICAÇÃO E REGISTRO ---
 @app.route('/api/login', methods=['POST'])
 def api_login():
     data = request.json
@@ -162,8 +151,7 @@ def api_validar():
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
     try:
-        cur.execute("SELECT nome FROM usuarios WHERE usuario_login = %s AND codigo_acesso = %s", 
-                    (data['usuario'], data['codigo']))
+        cur.execute("SELECT nome FROM usuarios WHERE usuario_login = %s AND codigo_acesso = %s", (data['usuario'], data['codigo']))
         user = cur.fetchone()
         if user:
             cur.execute("""
@@ -176,50 +164,9 @@ def api_validar():
                 try:
                     redis_client.delete("nbl_matriz_cache")
                     redis_client.delete("nbl_realtime_cache")
-                except:
-                    pass
-
+                except: pass
             return jsonify({"status": "ok", "msg": f"Sucesso, {user['nome']}!"})
         return jsonify({"status": "erro", "msg": "Dados incorretos"}), 401
-    except Exception as e:
-        return jsonify({"status": "erro", "msg": "Erro interno"}), 500
-    finally:
-        conn.close()
-
-# --- APIS DO PAINEL DE MONITORAMENTO ---
-@app.route('/admin/status_realtime')
-@app.route('/api/admin/status_realtime')
-def status_realtime():
-    if redis_client:
-        try:
-            cached_logs = redis_client.get("nbl_realtime_cache")
-            if cached_logs:
-                return jsonify(json.loads(cached_logs) if isinstance(cached_logs, str) else cached_logs)
-        except:
-            pass
-
-    conn = get_db_connection()
-    cur = conn.cursor(cursor_factory=RealDictCursor)
-    try:
-        cur.execute("""
-            SELECT u.nome, u.sobrenome, u.empresa, l.portaria, l.turno,
-                   TO_CHAR(l.data_hora, 'HH24:MI') as hora
-            FROM logs l 
-            JOIN usuarios u ON l.colaborador = u.usuario_login 
-            WHERE l.data_hora::date = (NOW() AT TIME ZONE 'America/Belem')::date
-            ORDER BY l.portaria ASC, l.data_hora DESC
-        """)
-        logs = cur.fetchall()
-        
-        if redis_client:
-            try:
-                redis_client.set("nbl_realtime_cache", json.dumps(logs), ex=5)
-            except:
-                pass
-                
-        return jsonify(logs)
-    except Exception as e:
-        return jsonify([])
     finally:
         conn.close()
 
@@ -227,68 +174,43 @@ def status_realtime():
 def relatorio_processado_api():
     return jsonify(processar_matriz_analitica())
 
-# --- NOVA ROTA: DISPARO AUTOMÁTICO (CRON JOB) ---
+# --- ROTA DE DISPARO AUTOMÁTICO (CRON JOB) ---
 @app.route('/api/cron/enviar_whatsapp', methods=['GET'])
 def cron_enviar_whatsapp():
-    """
-    Acionada de forma invisível pela Vercel às 07h, 16h e 22h.
-    Gera a matriz de acessos do dia e dispara direto para o WhatsApp do gestor.
-    """
-    # Verificação de segurança: garante que a chamada veio do agendador da Vercel
     is_vercel_cron = request.headers.get("X-Vercel-Cron") == "1"
-    
-    # Permite execução direta no navegador apenas em ambiente local de desenvolvimento
     if not is_vercel_cron and os.environ.get("FLASK_ENV") != "development":
         return jsonify({"status": "erro", "msg": "Não autorizado"}), 401
 
     try:
         dados_processados = processar_matriz_analitica()
-
         if not dados_processados:
-            return jsonify({"status": "ok", "msg": "Nenhum acesso para relatar hoje."})
+            return jsonify({"status": "ok", "msg": "Nenhum acesso para relatar nas últimas 24h."})
 
-        # Montagem estruturada do corpo do texto em Markdown
-        texto = "*📊 RELATÓRIO AUTOMÁTICO DE ACESSOS - NBL LOG*\n"
+        texto = "*📊 RELATÓRIO DE ACESSOS (24H) - NBL LOG*\n"
         texto += f"*Data/Hora:* {datetime.now().strftime('%d/%m/%Y %H:%M')}\n\n"
 
         for portaria, usuarios in dados_processados.items():
             texto += f"*🚪 PORTARIA: {portaria.upper()}*\n"
             texto += f"-----------------------------\n"
-            
             for user in usuarios:
-                for reg in user["registros"]:
-                    texto += f"• {user['nome']} | {reg['hora']} - {user['turno']} - {user['empresa']} {reg['status']}\n"
-            texto += f"\n"
+                texto += f"👤 *{user['nome']}* | {user['empresa']} | {user['turno']}\n"
+                registros_linha = " | ".join([f"{r['hora']}{r['status']}" for r in user["registros"]])
+                texto += f"⏱️ {registros_linha}\n\n"
 
         texto += "_Enviado automaticamente pelo servidor REFRASH NBL_"
 
-        # Integração de Envio HTTP (Padrão para APIs como Evolution API ou Z-API)
-        payload = {
-            "number": NUMERO_DESTINATARIO,
-            "message": texto
-        }
-        headers = {
-            "Authorization": f"Bearer {WHATSAPP_API_TOKEN}",
-            "Content-Type": "application/json"
-        }
-        
-        # Despacha o pacote via POST para o gateway de mensagens
+        payload = {"number": NUMERO_DESTINATARIO, "message": texto}
+        headers = {"Authorization": f"Bearer {WHATSAPP_API_TOKEN}", "Content-Type": "application/json"}
         response = requests.post(WHATSAPP_API_URL, json=payload, headers=headers, timeout=15)
         
-        return jsonify({
-            "status": "ok",
-            "http_code": response.status_code,
-            "msg": "Relatório automatizado despachado com sucesso!"
-        })
-
+        return jsonify({"status": "ok", "msg": "Enviado com sucesso!"})
     except Exception as err:
-        return jsonify({"status": "erro", "msg": f"Falha na execução do Cron: {str(err)}"}), 500
+        return jsonify({"status": "erro", "msg": str(err)}), 500
 
 # --- EXPORTAÇÕES DE RELATÓRIOS ---
 @app.route('/admin/exportar/excel')
 def exportar_excel():
-    if request.cookies.get('auth_admin') != ADMIN_PASS: 
-        return "Não autorizado", 401
+    if request.cookies.get('auth_admin') != ADMIN_PASS: return "Não autorizado", 401
     
     dados_processados = processar_matriz_analitica()
     rows = []
@@ -300,25 +222,24 @@ def exportar_excel():
                     "Colaborador": u["nome"],
                     "Empresa": u["empresa"],
                     "Turno": u["turno"],
-                    "Horário": r["hora"],
-                    "Status": "Confirmado" if r["status"] == "✅" else "Falta/Incompleto"
+                    "Horário Programado": r["hora"],
+                    "Status da Batida": "Confirmado ✅" if r["status"] == "✅" else "Falta ❌"
                 })
 
-    df = pd.DataFrame(rows) if rows else pd.DataFrame(columns=["Portaria", "Colaborador", "Empresa", "Turno", "Horário", "Status"])
+    df = pd.DataFrame(rows) if rows else pd.DataFrame(columns=["Portaria", "Colaborador", "Empresa", "Turno", "Horário Programado", "Status da Batida"])
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-        df.to_excel(writer, index=False, sheet_name='Acessos por Portaria')
+        df.to_excel(writer, index=False, sheet_name='Matriz 24h')
     output.seek(0)
 
     response = make_response(output.read())
-    response.headers["Content-Disposition"] = "attachment; filename=acessos_portaria_hoje.xlsx"
+    response.headers["Content-Disposition"] = "attachment; filename=relatorio_24h_nbl.xlsx"
     response.headers["Content-type"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     return response
 
 @app.route('/admin/exportar/pdf')
 def exportar_pdf():
-    if request.cookies.get('auth_admin') != ADMIN_PASS: 
-        return "Não autorizado", 401
+    if request.cookies.get('auth_admin') != ADMIN_PASS: return "Não autorizado", 401
 
     dados_processados = processar_matriz_analitica()
     buffer = io.BytesIO()
@@ -326,17 +247,17 @@ def exportar_pdf():
     elements = []
     styles = getSampleStyleSheet()
 
-    elements.append(Paragraph("<b>RELATÓRIO DE ACESSOS DIÁRIOS POR PORTARIA</b>", styles['Title']))
+    elements.append(Paragraph("<b>RELATÓRIO DE ACESSOS - MATRIZ 24H (NBL LOG)</b>", styles['Title']))
     elements.append(Spacer(1, 20))
 
-    data = [["Portaria", "Funcionário", "Horário", "Turno", "Status"]]
+    data = [["Portaria", "Colaborador", "Turno", "Horário", "Status"]]
     for portaria, usuarios in dados_processados.items():
         for u in usuarios:
             for r in u["registros"]:
-                status_texto = "OK" if r["status"] == "✅" else "AUSENTE"
-                data.append([portaria, u["nome"], r["hora"], u["turno"], status_texto])
+                status_texto = "OK" if r["status"] == "✅" else "FALTA"
+                data.append([portaria, u["nome"], u["turno"], r["hora"], status_texto])
 
-    t = Table(data, colWidths=[70, 160, 90, 85, 95])
+    t = Table(data, colWidths=[70, 160, 80, 85, 95])
     t.setStyle(TableStyle([
         ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#002855")),
         ('TEXTCOLOR', (0,0), (-1,0), colors.white),
@@ -350,7 +271,7 @@ def exportar_pdf():
     buffer.seek(0)
     
     response = make_response(buffer.read())
-    response.headers["Content-Disposition"] = "attachment; filename=acessos_portaria_hoje.pdf"
+    response.headers["Content-Disposition"] = "attachment; filename=relatorio_24h_nbl.pdf"
     response.headers["Content-type"] = "application/pdf"
     return response
 
@@ -379,15 +300,11 @@ def api_salvar_usuario():
         """, (data['nome'], data['sobrenome'], data['usuario_login'], data['codigo_acesso'], data['empresa'], data.get('sede','')))
         conn.commit()
         return jsonify({"status": "ok"})
-    except Exception as e:
-        return jsonify({"status": "erro", "msg": str(e)}), 500
-    finally:
-        conn.close()
+    finally: conn.close()
 
 @app.route('/admin/usuarios/excluir/<login>', methods=['DELETE'])
 def api_excluir_usuario(login):
-    if request.cookies.get('auth_admin') != ADMIN_PASS: 
-        return jsonify({"status": "erro"}), 401
+    if request.cookies.get('auth_admin') != ADMIN_PASS: return jsonify({"status": "erro"}), 401
     conn = get_db_connection()
     cur = conn.cursor()
     cur.execute("DELETE FROM usuarios WHERE usuario_login = %s", (login,))
@@ -395,5 +312,4 @@ def api_excluir_usuario(login):
     conn.close()
     return jsonify({"status": "ok"})
 
-if __name__ == '__main__':
-    app.run(debug=True)
+if __name__ == '__main__': app.run(debug=True)
