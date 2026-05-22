@@ -3,7 +3,6 @@ import io
 import json
 from datetime import datetime
 import pandas as pd
-import requests
 from flask import Flask, render_template, request, jsonify, make_response
 import psycopg2
 from psycopg2.extras import RealDictCursor
@@ -21,12 +20,7 @@ app = Flask(__name__, template_folder=template_path)
 
 ADMIN_PASS = os.environ.get('ADMIN_PASSWORD', 'admin123')
 
-# Configurações da API do WhatsApp (Para o Cron Job)
-WHATSAPP_API_URL = os.environ.get("WHATSAPP_API_URL", "https://api.sua-plataforma.com/send/message")
-WHATSAPP_API_TOKEN = os.environ.get("WHATSAPP_API_TOKEN", "seu-token-aqui")
-NUMERO_DESTINATARIO = os.environ.get("WHATSAPP_NUMERO_GESTOR", "5591999999999")
-
-# --- NOVO MAPEAMENTO DE TURNOS (DIURNO E NOTURNO) ---
+# Mapeamento de Horários Obrigatórios para os dois turnos (Janela de 24h)
 HORARIOS_OBRIGATORIOS = {
     "DIURNO": ["07:00", "08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00", "19:00"],
     "NOTURNO": ["19:00", "20:00", "21:00", "22:00", "23:00", "00:00", "01:00", "02:00", "03:00", "04:00", "05:00", "06:00", "07:00"]
@@ -59,7 +53,7 @@ def processar_matriz_analitica():
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
     
-    # Filtra APENAS usuários que deram entrada nas últimas 24 horas
+    # Filtra apenas usuários que deram entrada nas últimas 24 horas
     cur.execute("""
         SELECT u.nome, u.sobrenome, u.empresa, l.portaria, l.turno,
                TO_CHAR(l.data_hora, 'HH24:MI') as hora
@@ -122,16 +116,19 @@ def processar_matriz_analitica():
 
 # --- ROTAS DE PÁGINAS ---
 @app.route('/')
-def index(): return render_template('index.html')
+def index(): 
+    return render_template('index.html')
 
 @app.route('/admin')
 def admin_page():
-    if request.cookies.get('auth_admin') != ADMIN_PASS: return render_template('login.html')
+    if request.cookies.get('auth_admin') != ADMIN_PASS: 
+        return render_template('login.html')
     return render_template('admin.html')
 
 @app.route('/admin/monitoramento')
 def monitoramento_page():
-    if request.cookies.get('auth_admin') != ADMIN_PASS: return render_template('login.html')
+    if request.cookies.get('auth_admin') != ADMIN_PASS: 
+        return render_template('login.html')
     return render_template('monitoramento.html')
 
 # --- APIS DE AUTENTICAÇÃO E REGISTRO ---
@@ -174,43 +171,11 @@ def api_validar():
 def relatorio_processado_api():
     return jsonify(processar_matriz_analitica())
 
-# --- ROTA DE DISPARO AUTOMÁTICO (CRON JOB) ---
-@app.route('/api/cron/enviar_whatsapp', methods=['GET'])
-def cron_enviar_whatsapp():
-    is_vercel_cron = request.headers.get("X-Vercel-Cron") == "1"
-    if not is_vercel_cron and os.environ.get("FLASK_ENV") != "development":
-        return jsonify({"status": "erro", "msg": "Não autorizado"}), 401
-
-    try:
-        dados_processados = processar_matriz_analitica()
-        if not dados_processados:
-            return jsonify({"status": "ok", "msg": "Nenhum acesso para relatar nas últimas 24h."})
-
-        texto = "*📊 RELATÓRIO DE ACESSOS (24H) - NBL LOG*\n"
-        texto += f"*Data/Hora:* {datetime.now().strftime('%d/%m/%Y %H:%M')}\n\n"
-
-        for portaria, usuarios in dados_processados.items():
-            texto += f"*🚪 PORTARIA: {portaria.upper()}*\n"
-            texto += f"-----------------------------\n"
-            for user in usuarios:
-                texto += f"👤 *{user['nome']}* | {user['empresa']} | {user['turno']}\n"
-                registros_linha = " | ".join([f"{r['hora']}{r['status']}" for r in user["registros"]])
-                texto += f"⏱️ {registros_linha}\n\n"
-
-        texto += "_Enviado automaticamente pelo servidor REFRASH NBL_"
-
-        payload = {"number": NUMERO_DESTINATARIO, "message": texto}
-        headers = {"Authorization": f"Bearer {WHATSAPP_API_TOKEN}", "Content-Type": "application/json"}
-        response = requests.post(WHATSAPP_API_URL, json=payload, headers=headers, timeout=15)
-        
-        return jsonify({"status": "ok", "msg": "Enviado com sucesso!"})
-    except Exception as err:
-        return jsonify({"status": "erro", "msg": str(err)}), 500
-
 # --- EXPORTAÇÕES DE RELATÓRIOS ---
 @app.route('/admin/exportar/excel')
 def exportar_excel():
-    if request.cookies.get('auth_admin') != ADMIN_PASS: return "Não autorizado", 401
+    if request.cookies.get('auth_admin') != ADMIN_PASS: 
+        return "Não autorizado", 401
     
     dados_processados = processar_matriz_analitica()
     rows = []
@@ -239,7 +204,8 @@ def exportar_excel():
 
 @app.route('/admin/exportar/pdf')
 def exportar_pdf():
-    if request.cookies.get('auth_admin') != ADMIN_PASS: return "Não autorizado", 401
+    if request.cookies.get('auth_admin') != ADMIN_PASS: 
+        return "Não autorizado", 401
 
     dados_processados = processar_matriz_analitica()
     buffer = io.BytesIO()
@@ -300,11 +266,13 @@ def api_salvar_usuario():
         """, (data['nome'], data['sobrenome'], data['usuario_login'], data['codigo_acesso'], data['empresa'], data.get('sede','')))
         conn.commit()
         return jsonify({"status": "ok"})
-    finally: conn.close()
+    finally: 
+        conn.close()
 
 @app.route('/admin/usuarios/excluir/<login>', methods=['DELETE'])
 def api_excluir_usuario(login):
-    if request.cookies.get('auth_admin') != ADMIN_PASS: return jsonify({"status": "erro"}), 401
+    if request.cookies.get('auth_admin') != ADMIN_PASS: 
+        return jsonify({"status": "erro"}), 401
     conn = get_db_connection()
     cur = conn.cursor()
     cur.execute("DELETE FROM usuarios WHERE usuario_login = %s", (login,))
@@ -312,4 +280,5 @@ def api_excluir_usuario(login):
     conn.close()
     return jsonify({"status": "ok"})
 
-if __name__ == '__main__': app.run(debug=True)
+if __name__ == '__main__': 
+    app.run(debug=True)
