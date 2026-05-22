@@ -7,10 +7,11 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         :root { --nbl-blue: #1C355E; --nbl-red: #E31E24; --bg: #f4f7f9; }
-        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; position: relative; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; position: relative; overflow: hidden; }
         .card { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 400px; text-align: center; z-index: 2; }
         select, input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 16px; }
-        .main-btn { width: 100%; padding: 15px; background: var(--nbl-blue); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 18px; }
+        .main-btn { width: 100%; padding: 15px; background: var(--nbl-blue); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 18px; transition: background 0.2s; }
+        .main-btn:disabled { background: #cccccc; cursor: not-allowed; }
         
         /* Botão do Modo Totem (Tela Cheia) */
         .btn-totem {
@@ -34,6 +35,33 @@
         }
         .btn-totem:hover { background: #11223e; }
         .btn-totem.active { background: var(--nbl-red); }
+
+        /* Pop-up de Confirmação Visual Profissional (Modal Customizado) */
+        .modal-notificacao {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            display: flex; justify-content: center; align-items: center;
+            z-index: 9999; opacity: 0; pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+        .modal-notificacao.mostrar { opacity: 1; pointer-events: auto; }
+        
+        .modal-conteudo {
+            background: white; padding: 35px; border-radius: 16px;
+            text-align: center; max-width: 320px; width: 85%;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+            transform: scale(0.8); transition: transform 0.3s ease;
+        }
+        .modal-notificacao.mostrar .modal-conteudo { transform: scale(1); }
+        
+        .modal-icone { font-size: 50px; margin-bottom: 15px; display: block; }
+        .modal-icone.sucesso { color: #27ae60; }
+        .modal-icone.erro { color: var(--nbl-red); }
+        .modal-icone.alerta { color: #f39c12; }
+        
+        .modal-titulo { font-size: 22px; font-weight: bold; margin: 0 0 10px 0; color: #333; }
+        .modal-texto { font-size: 16px; margin: 0; color: #666; line-height: 1.4; }
     </style>
 </head>
 <body>
@@ -58,85 +86,121 @@
         
         <input type="text" id="user" placeholder="Usuário / Matrícula">
         <input type="password" id="code" placeholder="Código Numérico" inputmode="numeric">
-        <button class="main-btn" onclick="validar()">CONFIRMAR ENTRADA</button>
+        <button class="main-btn" id="btnConfirmar" onclick="validar()">CONFIRMAR ENTRADA</button>
+    </div>
+
+    <div id="notificacaoTotem" class="modal-notificacao">
+        <div class="modal-conteudo">
+            <span id="notificacaoIcone" class="modal-icone"></span>
+            <h3 id="notificacaoTitulo" class="modal-titulo"></h3>
+            <p id="notificacaoTexto" class="modal-texto"></p>
+        </div>
     </div>
 
     <script>
         let wakeLock = null;
 
-        // Função para manter a tela do tablet sempre ativa sem apagar
+        // Função Gerenciadora do Alerta Customizado Automático
+        function exibirAvisoTotem(tipo, titulo, mensagem) {
+            const modal = document.getElementById('notificacaoTotem');
+            const icone = document.getElementById('notificacaoIcone');
+            const titElement = document.getElementById('notificacaoTitulo');
+            const txtElement = document.getElementById('notificacaoTexto');
+
+            // Configura a identidade visual baseada no tipo de retorno
+            icone.className = "modal-icone";
+            if (tipo === "sucesso") {
+                icone.innerHTML = '<i class="fas fa-check-circle"></i>';
+                icone.classList.add('sucesso');
+            } else if (tipo === "erro") {
+                icone.innerHTML = '<i class="fas fa-times-circle"></i>';
+                icone.classList.add('erro');
+            } else {
+                icone.innerHTML = '<i class="fas fa-exclamation-triangle"></i>';
+                icone.classList.add('alerta');
+            }
+
+            titElement.innerText = titulo;
+            txtElement.innerText = mensagem;
+
+            // Exibe na tela com efeito suave de fade-in
+            modal.classList.add('mostrar');
+
+            // Fecha automaticamente após 4 segundos sem travar o processamento
+            setTimeout(() => {
+                modal.classList.remove('mostrar');
+            }, 4000);
+        }
+
+        // Bloqueio de Suspensão de Tela (WakeLock)
         async function solicitarSinalAtivo() {
             if ('wakeLock' in navigator) {
                 try {
                     wakeLock = await navigator.wakeLock.request('screen');
-                    console.log("Wake Lock ativo: A tela não irá desligar.");
+                    console.log("Wake Lock ativo: Tela travada.");
                 } catch (err) {
-                    console.warn(`Não foi possível manter a tela ativa: ${err.message}`);
+                    console.warn(`Falha ao travar tela: ${err.message}`);
                 }
-            } else {
-                console.log("API Wake Lock não suportada neste navegador.");
             }
         }
 
-        // Libera o bloqueio se sair do modo tela cheia
         function liberarSinalAtivo() {
             if (wakeLock !== null) {
                 wakeLock.release();
                 wakeLock = null;
-                console.log("Wake Lock liberado.");
             }
         }
 
-        // Alternador Inteligente de Modo Totem (Tela Cheia + Tela Ativa)
         function alternarModoTotem() {
             const btn = document.getElementById('totemBtn');
-            
             if (!document.fullscreenElement) {
-                // Ativa Tela Cheia
                 document.documentElement.requestFullscreen()
                     .then(() => {
                         btn.innerHTML = '<i class="fas fa-compress"></i> Sair do Modo Totem';
                         btn.classList.add('active');
-                        solicitarSinalAtivo(); // Trava a tela ativa
+                        solicitarSinalAtivo();
                     })
                     .catch(err => {
-                        alert(`Erro ao tentar aplicar tela cheia: ${err.message}`);
+                        exibirAvisoTotem("alerta", "Modo Tela Cheia", `Incapaz de alternar: ${err.message}`);
                     });
             } else {
-                // Sai da Tela Cheia
                 document.exitFullscreen();
             }
         }
 
-        // Monitora mudanças na tela cheia (caso o usuário saia usando o botão padrão do tablet)
         document.addEventListener('fullscreenchange', () => {
             const btn = document.getElementById('totemBtn');
             if (!document.fullscreenElement) {
                 btn.innerHTML = '<i class="fas fa-expand"></i> Ativar Modo Totem';
                 btn.classList.remove('active');
-                liberarSinalAtivo(); // Libera o tablet para apagar se necessário
+                liberarSinalAtivo();
             }
         });
 
-        // Reaplica o bloqueio automaticamente se o app perder o foco e voltar
         document.addEventListener('visibilitychange', async () => {
             if (wakeLock !== null && document.visibilityState === 'visible') {
                 await solicitarSinalAtivo();
             }
         });
 
-        // Envio dos dados para validação
+        // Envio e Processamento de Dados com Tratamento de Duplicações e Case-Insensitive
         async function validar() {
+            const btnConfirmar = document.getElementById('btnConfirmar');
+            
             const payload = {
-                usuario: document.getElementById('user').value.trim(),
+                usuario: document.getElementById('user').value.trim().toLowerCase(),
                 codigo: document.getElementById('code').value.trim(),
                 turno: document.getElementById('turno').value,
                 portaria: document.getElementById('portaria').value
             };
 
             if (!payload.usuario || !payload.codigo || !payload.portaria || !payload.turno) {
-                return alert("Por favor, preencha todos os campos.");
+                return exibirAvisoTotem("alerta", "Campos Vazios", "Por favor, selecione e preencha todas as credenciais.");
             }
+
+            // Desativa botão para mitigar múltiplos cliques acidentais
+            btnConfirmar.disabled = true;
+            btnConfirmar.innerText = "PROCESSANDO...";
 
             try {
                 const res = await fetch('/api/colaborador/validar', {
@@ -145,13 +209,20 @@
                     body: JSON.stringify(payload)
                 });
                 const data = await res.json();
-                alert(data.msg);
+                
                 if (res.ok) {
+                    exibirAvisoTotem("sucesso", "Acesso Registrado", data.msg);
                     document.getElementById('code').value = '';
                     document.getElementById('user').value = '';
+                } else {
+                    exibirAvisoTotem("erro", "Não Permitido", data.msg || "Dados inválidos informados.");
                 }
             } catch (e) {
-                alert("Erro de conexão com o servidor.");
+                exibirAvisoTotem("erro", "Erro de Rede", "Não foi possível estabelecer contato com o servidor.");
+            } finally {
+                // Devolve controle ao botão para o próximo check-in
+                btnConfirmar.disabled = false;
+                btnConfirmar.innerText = "CONFIRMAR ENTRADA";
             }
         }
     </script>
